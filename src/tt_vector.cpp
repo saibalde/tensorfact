@@ -1,8 +1,8 @@
-#include "tt/vector.hpp"
+#include "tt_vector.hpp"
 
 #include <stdexcept>
 
-tt::Vector::Vector(const arma::Col<arma::uword> &dims,
+TtVector::TtVector(const arma::Col<arma::uword> &dims,
                    const arma::Col<arma::uword> &ranks) {
   ndim_ = dims.n_elem;
 
@@ -27,7 +27,7 @@ tt::Vector::Vector(const arma::Col<arma::uword> &dims,
   }
 }
 
-tt::Vector::Vector(const arma::field<arma::Cube<double>> &cores)
+TtVector::TtVector(const arma::field<arma::Cube<double>> &cores)
     : cores_(cores) {
   ndim_ = cores.n_elem;
 
@@ -58,7 +58,7 @@ tt::Vector::Vector(const arma::field<arma::Cube<double>> &cores)
   cores_ = cores;
 }
 
-double tt::Vector::operator()(const arma::Col<arma::uword> &index) const {
+double TtVector::operator()(const arma::Col<arma::uword> &index) const {
   arma::Col<double> entries(2 * maxrank_);
   unsigned int skip = 0;
 

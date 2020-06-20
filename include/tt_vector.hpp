@@ -3,34 +3,32 @@
 
 #include <armadillo>
 
-namespace tt {
-
 /**
  * TT representation of a multidimensional vector
  */
-class Vector {
+class TtVector {
  public:
   /**
    * Default constructor.
    */
-  Vector() = default;
+  TtVector() = default;
 
   /**
    * Construct a TT-vector from the dimensions and TT ranks. The cores are all
    * initialized to zeros.
    */
-  Vector(const arma::Col<arma::uword> &dims,
-         const arma::Col<arma::uword> &ranks);
+  TtVector(const arma::Col<arma::uword> &dims,
+           const arma::Col<arma::uword> &ranks);
 
   /**
    * Construct a TT-vector from the cores.
    */
-  Vector(const arma::field<arma::Cube<double>> &cores);
+  TtVector(const arma::field<arma::Cube<double>> &cores);
 
   /**
    * Default destructor.
    */
-  ~Vector() = default;
+  ~TtVector() = default;
 
   /**
    * Return the dimensionality of the TT-vector.
@@ -69,7 +67,5 @@ class Vector {
   arma::uword maxrank_;
   arma::field<arma::Cube<double>> cores_;
 };
-
-}  // namespace tt
 
 #endif

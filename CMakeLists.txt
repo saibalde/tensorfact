@@ -5,8 +5,6 @@ find_package(Armadillo REQUIRED)
 
 add_subdirectory(src)
 
-# tests
-
 if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
     option(TensorTrain_ENABLE_TESTS "Build package tests" ON)
 endif()

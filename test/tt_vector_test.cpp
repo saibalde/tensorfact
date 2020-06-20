@@ -1,4 +1,4 @@
-#include "tt/vector.hpp"
+#include "tt_vector.hpp"
 
 #include <armadillo>
 #include <iostream>
@@ -9,7 +9,7 @@ TEST(vector, construct_from_dims_and_ranks) {
   arma::Col<arma::uword> dims({3, 7, 5});
   arma::Col<arma::uword> ranks({1, 2, 3, 1});
 
-  tt::Vector tt_vector(dims, ranks);
+  TtVector tt_vector(dims, ranks);
 
   ASSERT_TRUE(tt_vector.NumDims() == 3);
   ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
@@ -63,7 +63,7 @@ TEST(vector, construct_from_cores) {
     cores(ndim - 1)(1, 0, i) = i;
   }
 
-  tt::Vector tt_vector(cores);
+  TtVector tt_vector(cores);
 
   ASSERT_TRUE(tt_vector.NumDims() == ndim);
   ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
