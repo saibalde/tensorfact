@@ -17,11 +17,11 @@ set_target_properties(gtest_main PROPERTIES FOLDER extern)
 set_target_properties(gmock PROPERTIES FOLDER extern)
 set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
-macro(tt_add_test TESTNAME)
+macro(TensorTrain_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN})
     target_link_libraries(${TESTNAME} tt::tt gmock gtest gmock_main gtest_main)
     add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
     set_target_properties(${TESTNAME} PROPERTIES FOLDER test)
 endmacro()
 
-tt_add_test(vector_test vector_test.cpp)
+TensorTrain_add_test(vector_test vector_test.cpp)
