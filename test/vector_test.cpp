@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 
 TEST(vector, construct_from_dims_and_ranks) {
-  arma::Col<arma::uword> dims({3, 4, 5});
+  arma::Col<arma::uword> dims({3, 7, 5});
   arma::Col<arma::uword> ranks({1, 2, 3, 1});
 
   tt::Vector tt_vector(dims, ranks);
@@ -15,43 +15,68 @@ TEST(vector, construct_from_dims_and_ranks) {
   ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
   ASSERT_TRUE(arma::all(tt_vector.Ranks() == ranks));
   ASSERT_TRUE(tt_vector.MaxRank() == 3);
+
+  ASSERT_TRUE(arma::all(arma::vectorise(
+      arma::abs(tt_vector.Core(0) -
+                arma::Cube<double>(1, 2, 3, arma::fill::zeros)) < 1.0e-15)));
+  ASSERT_TRUE(arma::all(arma::vectorise(
+      arma::abs(tt_vector.Core(1) -
+                arma::Cube<double>(2, 3, 7, arma::fill::zeros)) < 1.0e-15)));
+  ASSERT_TRUE(arma::all(arma::vectorise(
+      arma::abs(tt_vector.Core(2) -
+                arma::Cube<double>(3, 1, 5, arma::fill::zeros)) < 1.0e-15)));
 }
 
 TEST(vector, construct_from_cores) {
-  arma::field<arma::Cube<double>> cores(3);
+  arma::Col<arma::uword> dims{5, 3, 6, 4};
 
-  cores(0).set_size(1, 3, 2);
-  for (arma::uword i = 0; i < 3; ++i) {
-    cores(0)(0, i, 0) = i;
-    cores(0)(0, i, 1) = 1;
+  arma::uword ndim = dims.n_elem;
+
+  arma::Col<arma::uword> ranks(ndim + 1);
+  ranks(0) = 1;
+  for (arma::uword d = 1; d < ndim; ++d) {
+    ranks(d) = 2;
+  }
+  ranks(ndim) = 1;
+
+  arma::field<arma::Cube<double>> cores(ndim);
+
+  cores(0).zeros(1, 2, dims(0));
+  for (arma::uword i = 0; i < dims(0); ++i) {
+    cores(0)(0, 0, i) = i;
+    cores(0)(0, 1, i) = 1;
   }
 
-  cores(1).set_size(2, 4, 2);
-  for (arma::uword i = 0; i < 4; ++i) {
-    cores(1)(0, i, 0) = 1;
-    cores(1)(1, i, 0) = i;
-    cores(1)(0, i, 1) = 0;
-    cores(1)(1, i, 1) = 1;
+  for (arma::uword d = 1; d < ndim - 1; ++d) {
+    cores(d).zeros(2, 2, dims(d));
+    for (arma::uword i = 0; i < dims(d); ++i) {
+      cores(d)(0, 0, i) = 1;
+      cores(d)(1, 0, i) = i;
+      cores(d)(0, 1, i) = 0;
+      cores(d)(1, 1, i) = 1;
+    }
   }
 
-  cores(2).set_size(2, 5, 1);
-  for (arma::uword i = 0; i < 5; ++i) {
-    cores(2)(0, i, 0) = 1;
-    cores(2)(1, i, 0) = i;
+  cores(ndim - 1).set_size(2, 1, dims(ndim - 1));
+  for (arma::uword i = 0; i < dims(ndim - 1); ++i) {
+    cores(ndim - 1)(0, 0, i) = 1;
+    cores(ndim - 1)(1, 0, i) = i;
   }
 
   tt::Vector tt_vector(cores);
 
-  ASSERT_TRUE(tt_vector.NumDims() == 3);
-  ASSERT_TRUE(arma::all(tt_vector.Dims() == arma::Col<arma::uword>({3, 4, 5})));
-  ASSERT_TRUE(
-      arma::all(tt_vector.Ranks() == arma::Col<arma::uword>({1, 2, 2, 1})));
+  ASSERT_TRUE(tt_vector.NumDims() == ndim);
+  ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
+  ASSERT_TRUE(arma::all(tt_vector.Ranks() == ranks));
   ASSERT_TRUE(tt_vector.MaxRank() == 2);
 
-  for (arma::uword k = 0; k < 5; ++k) {
-    for (arma::uword j = 0; j < 4; ++j) {
-      for (arma::uword i = 0; i < 3; ++i) {
-        ASSERT_TRUE(std::abs(tt_vector({i, j, k}) - i - j - k) < 1.0e-12);
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) - i - j - k - l) <
+                      1.0e-15);
+        }
       }
     }
   }

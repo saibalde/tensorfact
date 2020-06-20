@@ -23,7 +23,7 @@ tt::Vector::Vector(const arma::Col<arma::uword> &dims,
 
   cores_.set_size(ndim_);
   for (arma::uword i = 0; i < ndim_; ++i) {
-    cores_[i].set_size(ranks[i], dims[i], ranks[i + 1]);
+    cores_[i].zeros(ranks[i], ranks[i + 1], dims[i]);
   }
 }
 
@@ -31,20 +31,20 @@ tt::Vector::Vector(const arma::field<arma::Cube<double>> &cores)
     : cores_(cores) {
   ndim_ = cores.n_elem;
 
-  if ((cores[0].n_rows != 1) || (cores[ndim_ - 1].n_slices != 1)) {
+  if ((cores[0].n_rows != 1) || (cores[ndim_ - 1].n_cols != 1)) {
     // raise error
     // core dimensionality is not compatible with TT format
   }
 
-  dims_.set_size(ndim_);
-  ranks_.set_size(ndim_ + 1);
+  dims_.zeros(ndim_);
+  ranks_.zeros(ndim_ + 1);
   maxrank_ = 1;
 
   for (arma::uword i = 0; i < ndim_; ++i) {
-    dims_[i] = cores[i].n_cols;
+    dims_[i] = cores[i].n_slices;
 
     ranks_[i] = cores[i].n_rows;
-    if ((i > 0) && (cores[i - 1].n_slices != ranks_[i])) {
+    if ((i > 0) && (cores[i - 1].n_cols != ranks_[i])) {
       // raise error
       // core dimensionality is not compatible with TT format
     }
@@ -63,22 +63,22 @@ double tt::Vector::operator()(const arma::Col<arma::uword> &index) const {
   unsigned int skip = 0;
 
   for (unsigned int l = 0; l < ndim_; ++l) {
-    arma::uword k = ndim_ - 1 - l;
+    arma::uword d = ndim_ - 1 - l;
 
     unsigned int next_skip = (skip + 1) % 2;
 
-    if (k == ndim_ - 1) {
+    if (d == ndim_ - 1) {
       // copy over
-      for (arma::uword i = 0; i < ranks_(k); ++i) {
-        entries(next_skip * maxrank_ + i) = cores_(k)(i, index[k], 0);
+      for (arma::uword i = 0; i < ranks_(d); ++i) {
+        entries(next_skip * maxrank_ + i) = cores_(d)(i, 0, index[d]);
       }
     } else {
       // multiplication by core
-      for (arma::uword i = 0; i < ranks_(k); ++i) {
+      for (arma::uword i = 0; i < ranks_(d); ++i) {
         entries(next_skip * maxrank_ + i) = 0.0;
-        for (arma::uword j = 0; j < ranks_(k + 1); ++j) {
+        for (arma::uword j = 0; j < ranks_(d + 1); ++j) {
           entries(next_skip * maxrank_ + i) +=
-              cores_(k)(i, index(k), j) * entries(skip * maxrank_ + j);
+              cores_(d)(i, j, index(d)) * entries(skip * maxrank_ + j);
         }
       }
     }
