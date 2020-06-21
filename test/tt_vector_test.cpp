@@ -1,7 +1,7 @@
 #include "tt_vector.hpp"
 
 #include <armadillo>
-#include <iostream>
+#include <cmath>
 
 #include "gtest/gtest.h"
 
@@ -122,6 +122,85 @@ TEST(vector, vector_addition) {
       }
     }
   }
+}
+
+TEST(vector, unary_minus) {
+  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
+  TtVector tt_vector2 = -tt_vector1;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          ASSERT_TRUE(std::abs(tt_vector2({i, j, k, l}) -
+                               (-1.0) * (i + j + k + l)) < 1.0e-15);
+        }
+      }
+    }
+  }
+}
+
+TEST(vector, vector_subtraction) {
+  TtVector tt_vector1 = 5.0 * CreateTestTtVector({5, 3, 6, 4});
+  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
+
+  TtVector tt_vector = tt_vector1 - tt_vector2;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) -
+                               7.0 * (i + j + k + l)) < 1.0e-15);
+        }
+      }
+    }
+  }
+}
+
+TEST(vector, dot_product) {
+  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
+  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
+
+  double obtained_value = Dot(tt_vector1, tt_vector2);
+
+  double expected_value = 0.0;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          expected_value += std::pow(i + j + k + l, 2.0);
+        }
+      }
+    }
+  }
+
+  expected_value *= -2.0;
+
+  ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
+}
+
+TEST(vector, norm) {
+  TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
+
+  double obtained_value = Norm(tt_vector);
+
+  double expected_value = 0.0;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          expected_value += std::pow(i + j + k + l, 2.0);
+        }
+      }
+    }
+  }
+
+  expected_value = std::sqrt(expected_value);
+
+  ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
 }
 
 int main(int argc, char **argv) {

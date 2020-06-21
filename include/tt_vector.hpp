@@ -2,6 +2,7 @@
 #define TT_VECTOR_HPP
 
 #include <armadillo>
+#include <cmath>
 
 /**
  * TT representation of a multidimensional vector
@@ -61,14 +62,34 @@ class TtVector {
   double operator()(const arma::Col<arma::uword> &index) const;
 
   /**
-   * Implement right side scalar multiplication for TT-vector.
+   * Right side scalar multiplication for TT-vector.
    */
   TtVector operator*(double constant) const;
 
   /**
-   * Implement TT-vector addition.
+   * TT-vector addition.
    */
   TtVector operator+(const TtVector &other) const;
+
+  /**
+   * TT-vector unary minus operator.
+   */
+  TtVector operator-() const { return *this * (-1.0); }
+
+  /**
+   * TT-vector substraction.
+   */
+  TtVector operator-(const TtVector &other) const { return *this + (-other); }
+
+  /**
+   * TT-vector dot product.
+   */
+  double Dot(const TtVector &other) const;
+
+  /**
+   * TT-vector norm.
+   */
+  double Norm() const { return std::sqrt(this->Dot(*this)); }
 
  private:
   arma::uword ndim_;
@@ -79,10 +100,22 @@ class TtVector {
 };
 
 /**
- * Implement left side scalar multiplication for TT-vector.
+ * Left side scalar multiplication for TT-vector.
  */
 inline TtVector operator*(double constant, const TtVector &vector) {
   return vector * constant;
 }
+
+/**
+ * Dot product betweent two TT-vectors.
+ */
+inline double Dot(const TtVector &vector1, const TtVector &vector2) {
+  return vector1.Dot(vector2);
+}
+
+/**
+ * Norm of a TT-vector
+ */
+inline double Norm(const TtVector &vector) { return vector.Norm(); }
 
 #endif

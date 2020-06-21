@@ -170,3 +170,37 @@ TtVector TtVector::operator+(const TtVector &other) const {
 
   return TtVector(cores_new);
 }
+
+double TtVector::Dot(const TtVector &other) const {
+  if (arma::any(dims_ != other.Dims())) {
+    // size mismatch
+  }
+
+  arma::Col<arma::uword> ranks_other = other.Ranks();
+
+  arma::Cube<double> temp_3d;
+  arma::Mat<double> temp_2d;
+
+  for (unsigned int l = 0; l < ndim_; ++l) {
+    arma::uword d = ndim_ - 1 - l;
+
+    temp_3d.set_size(ranks_other(d), ranks_(d), dims_(d));
+
+    if (d == ndim_ - 1) {
+      // Kronecker product of the last cores
+      for (arma::uword k = 0; k < dims_(d); ++k) {
+        temp_3d.slice(k) = other.Core(d).slice(k) * cores_(d).slice(k).t();
+      }
+    } else {
+      // multiplication by Kronecker product of the cores
+      for (arma::uword k = 0; k < dims_(d); ++k) {
+        temp_3d.slice(k) =
+            (other.Core(d).slice(k) * temp_2d) * cores_(d).slice(k).t();
+      }
+    }
+
+    temp_2d = arma::sum(temp_3d, 2);
+  }
+
+  return temp_2d(0, 0);
+}
