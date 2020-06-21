@@ -60,6 +60,16 @@ class TtVector {
    */
   double operator()(const arma::Col<arma::uword> &index) const;
 
+  /**
+   * Implement right side scalar multiplication for TT-vector.
+   */
+  TtVector operator*(double constant) const;
+
+  /**
+   * Implement TT-vector addition.
+   */
+  TtVector operator+(const TtVector &other) const;
+
  private:
   arma::uword ndim_;
   arma::Col<arma::uword> dims_;
@@ -69,13 +79,10 @@ class TtVector {
 };
 
 /**
- * Implement scalar multiplication for TT-Vector.
+ * Implement left side scalar multiplication for TT-vector.
  */
-TtVector operator*(double constant, const TtVector &vector);
-
-/**
- * Implement addition for TT-Vector
- */
-TtVector operator+(const TtVector &vector1, const TtVector &vector2);
+inline TtVector operator*(double constant, const TtVector &vector) {
+  return vector * constant;
+}
 
 #endif
