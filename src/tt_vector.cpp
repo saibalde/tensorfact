@@ -59,34 +59,19 @@ TtVector::TtVector(const arma::field<arma::Cube<double>> &cores)
 }
 
 double TtVector::operator()(const arma::Col<arma::uword> &index) const {
-  arma::Col<double> entries(2 * maxrank_);
-  unsigned int skip = 0;
+  arma::Mat<double> temp;
 
   for (unsigned int l = 0; l < ndim_; ++l) {
     arma::uword d = ndim_ - 1 - l;
 
-    unsigned int next_skip = (skip + 1) % 2;
-
     if (d == ndim_ - 1) {
-      // copy over
-      for (arma::uword i = 0; i < ranks_(d); ++i) {
-        entries(next_skip * maxrank_ + i) = cores_(d)(i, 0, index[d]);
-      }
+      temp = cores_(d).slice(index(d));
     } else {
-      // multiplication by core
-      for (arma::uword i = 0; i < ranks_(d); ++i) {
-        entries(next_skip * maxrank_ + i) = 0.0;
-        for (arma::uword j = 0; j < ranks_(d + 1); ++j) {
-          entries(next_skip * maxrank_ + i) +=
-              cores_(d)(i, j, index(d)) * entries(skip * maxrank_ + j);
-        }
-      }
+      temp = cores_(d).slice(index(d)) * temp;
     }
-
-    skip = next_skip;
   }
 
-  return entries(skip * maxrank_);
+  return temp(0, 0);
 }
 
 TtVector TtVector::operator*(double constant) const {
