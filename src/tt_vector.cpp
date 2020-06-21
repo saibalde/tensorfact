@@ -88,3 +88,87 @@ double TtVector::operator()(const arma::Col<arma::uword> &index) const {
 
   return entries(skip * maxrank_);
 }
+
+TtVector operator*(double constant, const TtVector &vector) {
+  arma::uword ndim = vector.NumDims();
+  arma::field<arma::Cube<double>> cores(ndim);
+
+  for (arma::uword d = 0; d < ndim; ++d) {
+    cores(d) = vector.Core(d);
+  }
+
+  cores(ndim - 1) *= constant;
+
+  return TtVector(cores);
+}
+
+TtVector operator+(const TtVector &vector1, const TtVector &vector2) {
+  arma::Col<arma::uword> dims = vector1.Dims();
+
+  if (!arma::all(dims == vector2.Dims())) {
+    // throw exception
+  }
+
+  arma::uword ndim = vector1.NumDims();
+
+  arma::field<arma::Cube<double>> cores(ndim);
+
+  arma::Col<arma::uword> ranks1 = vector1.Ranks();
+  arma::Col<arma::uword> ranks2 = vector2.Ranks();
+
+  arma::Col<arma::uword> ranks = ranks1 + ranks2;
+  ranks(0) = 1;
+  ranks(ndim) = 1;
+
+  // first core
+
+  cores(0).zeros(1, ranks(1), dims(0));
+
+  for (arma::uword k = 0; k < dims(0); ++k) {
+    for (arma::uword j = 0; j < ranks1(1); ++j) {
+      cores(0)(0, j, k) = vector1.Core(0)(0, j, k);
+    }
+
+    for (arma::uword j = 0; j < ranks2(1); ++j) {
+      cores(0)(0, ranks1(1) + j, k) = vector2.Core(0)(0, j, k);
+    }
+  }
+
+  // middle cores
+
+  for (arma::uword d = 1; d < ndim - 1; ++d) {
+    cores(d).zeros(ranks(d), ranks(d + 1), dims(d));
+
+    for (arma::uword k = 0; k < dims(d); ++k) {
+      for (arma::uword j = 0; j < ranks1(d + 1); ++j) {
+        for (arma::uword i = 0; i < ranks1(d); ++i) {
+          cores(d)(i, j, k) = vector1.Core(d)(i, j, k);
+        }
+      }
+
+      for (arma::uword j = 0; j < ranks2(d + 1); ++j) {
+        for (arma::uword i = 0; i < ranks2(d); ++i) {
+          cores(d)(ranks1(d) + i, ranks1(d + 1) + j, k) =
+              vector2.Core(d)(i, j, k);
+        }
+      }
+    }
+  }
+
+  // last core
+
+  cores(ndim - 1).zeros(ranks(ndim - 1), 1, dims(ndim - 1));
+
+  for (arma::uword k = 0; k < dims(ndim - 1); ++k) {
+    for (arma::uword i = 0; i < ranks1(ndim - 1); ++i) {
+      cores(ndim - 1)(i, 0, k) = vector1.Core(ndim - 1)(i, 0, k);
+    }
+
+    for (arma::uword i = 0; i < ranks2(ndim - 1); ++i) {
+      cores(ndim - 1)(ranks1(ndim - 1) + i, 0, k) =
+          vector2.Core(ndim - 1)(i, 0, k);
+    }
+  }
+
+  return TtVector(cores);
+}

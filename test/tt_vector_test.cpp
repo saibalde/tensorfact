@@ -27,9 +27,11 @@ TEST(vector, construct_from_dims_and_ranks) {
                 arma::Cube<double>(3, 1, 5, arma::fill::zeros)) < 1.0e-15)));
 }
 
-TEST(vector, construct_from_cores) {
-  arma::Col<arma::uword> dims{5, 3, 6, 4};
-
+/**
+ * Create TT-Vector with X(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1} given
+ * the dimensions
+ */
+TtVector CreateTestTtVector(const arma::Col<arma::uword> &dims) {
   arma::uword ndim = dims.n_elem;
 
   arma::Col<arma::uword> ranks(ndim + 1);
@@ -63,11 +65,17 @@ TEST(vector, construct_from_cores) {
     cores(ndim - 1)(1, 0, i) = i;
   }
 
-  TtVector tt_vector(cores);
+  return TtVector(cores);
+}
 
-  ASSERT_TRUE(tt_vector.NumDims() == ndim);
-  ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
-  ASSERT_TRUE(arma::all(tt_vector.Ranks() == ranks));
+TEST(vector, construct_from_cores) {
+  TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
+
+  ASSERT_TRUE(tt_vector.NumDims() == 4);
+  ASSERT_TRUE(
+      arma::all(tt_vector.Dims() == arma::Col<arma::uword>({5, 3, 6, 4})));
+  ASSERT_TRUE(
+      arma::all(tt_vector.Ranks() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
   ASSERT_TRUE(tt_vector.MaxRank() == 2);
 
   for (arma::uword l = 0; l < 4; ++l) {
@@ -76,6 +84,40 @@ TEST(vector, construct_from_cores) {
         for (arma::uword i = 0; i < 5; ++i) {
           ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) - i - j - k - l) <
                       1.0e-15);
+        }
+      }
+    }
+  }
+}
+
+TEST(vector, scalar_multiplication) {
+  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
+  TtVector tt_vector2 = 2.0 * tt_vector1;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          ASSERT_TRUE(std::abs(tt_vector2({i, j, k, l}) -
+                               2.0 * (i + j + k + l)) < 1.0e-15);
+        }
+      }
+    }
+  }
+}
+
+TEST(vector, vector_addition) {
+  TtVector tt_vector1 = 5.0 * CreateTestTtVector({5, 3, 6, 4});
+  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
+
+  TtVector tt_vector = tt_vector1 + tt_vector2;
+
+  for (arma::uword l = 0; l < 4; ++l) {
+    for (arma::uword k = 0; k < 6; ++k) {
+      for (arma::uword j = 0; j < 3; ++j) {
+        for (arma::uword i = 0; i < 5; ++i) {
+          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) -
+                               3.0 * (i + j + k + l)) < 1.0e-15);
         }
       }
     }

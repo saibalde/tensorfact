@@ -68,4 +68,14 @@ class TtVector {
   arma::field<arma::Cube<double>> cores_;
 };
 
+/**
+ * Implement scalar multiplication for TT-Vector.
+ */
+TtVector operator*(double constant, const TtVector &vector);
+
+/**
+ * Implement addition for TT-Vector
+ */
+TtVector operator+(const TtVector &vector1, const TtVector &vector2);
+
 #endif
