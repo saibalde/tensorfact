@@ -13,3 +13,11 @@ if(TensorTrain_ENABLE_TESTS)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
+    option(TensorTrain_ENABLE_DOCS "Build package documentation" ON)
+endif()
+
+if(TensorTrain_ENABLE_DOCS)
+    add_subdirectory(docs)
+endif()
