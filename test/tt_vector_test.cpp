@@ -14,7 +14,6 @@ TEST(vector, construct_from_dims_and_ranks) {
   ASSERT_TRUE(tt_vector.NumDims() == 3);
   ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
   ASSERT_TRUE(arma::all(tt_vector.Ranks() == ranks));
-  ASSERT_TRUE(tt_vector.MaxRank() == 3);
 
   ASSERT_TRUE(arma::all(arma::vectorise(
       arma::abs(tt_vector.Core(0) -
@@ -76,7 +75,6 @@ TEST(vector, construct_from_cores) {
       arma::all(tt_vector.Dims() == arma::Col<arma::uword>({5, 3, 6, 4})));
   ASSERT_TRUE(
       arma::all(tt_vector.Ranks() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
-  ASSERT_TRUE(tt_vector.MaxRank() == 2);
 
   for (arma::uword l = 0; l < 4; ++l) {
     for (arma::uword k = 0; k < 6; ++k) {
@@ -84,22 +82,6 @@ TEST(vector, construct_from_cores) {
         for (arma::uword i = 0; i < 5; ++i) {
           ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) - i - j - k - l) <
                       1.0e-15);
-        }
-      }
-    }
-  }
-}
-
-TEST(vector, scalar_multiplication) {
-  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = 2.0 * tt_vector1;
-
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          ASSERT_TRUE(std::abs(tt_vector2({i, j, k, l}) -
-                               2.0 * (i + j + k + l)) < 1.0e-15);
         }
       }
     }
@@ -124,34 +106,16 @@ TEST(vector, vector_addition) {
   }
 }
 
-TEST(vector, unary_minus) {
+TEST(vector, scalar_multiplication) {
   TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = -tt_vector1;
+  TtVector tt_vector2 = 2.0 * tt_vector1;
 
   for (arma::uword l = 0; l < 4; ++l) {
     for (arma::uword k = 0; k < 6; ++k) {
       for (arma::uword j = 0; j < 3; ++j) {
         for (arma::uword i = 0; i < 5; ++i) {
           ASSERT_TRUE(std::abs(tt_vector2({i, j, k, l}) -
-                               (-1.0) * (i + j + k + l)) < 1.0e-15);
-        }
-      }
-    }
-  }
-}
-
-TEST(vector, vector_subtraction) {
-  TtVector tt_vector1 = 5.0 * CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
-
-  TtVector tt_vector = tt_vector1 - tt_vector2;
-
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) -
-                               7.0 * (i + j + k + l)) < 1.0e-15);
+                               2.0 * (i + j + k + l)) < 1.0e-15);
         }
       }
     }
@@ -181,7 +145,7 @@ TEST(vector, dot_product) {
   ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
 }
 
-TEST(vector, norm) {
+TEST(vector, vector_norm) {
   TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
 
   double obtained_value = Norm(tt_vector);

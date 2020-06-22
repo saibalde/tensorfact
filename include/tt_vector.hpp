@@ -47,11 +47,6 @@ class TtVector {
   const arma::Col<arma::uword> &Ranks() const { return ranks_; }
 
   /**
-   * Return the maximum TT-rank of the TT-vector.
-   */
-  arma::uword MaxRank() const { return maxrank_; }
-
-  /**
    * Return the specified core of the TT-vector.
    */
   const arma::Cube<double> &Core(arma::uword i) const { return cores_(i); }
@@ -62,60 +57,32 @@ class TtVector {
   double operator()(const arma::Col<arma::uword> &index) const;
 
   /**
-   * Right side scalar multiplication for TT-vector.
-   */
-  TtVector operator*(double constant) const;
-
-  /**
    * TT-vector addition.
    */
-  TtVector operator+(const TtVector &other) const;
+  friend TtVector operator+(const TtVector &vector1, const TtVector &vector2);
 
   /**
-   * TT-vector unary minus operator.
+   * Left side scalar multiplication of TT-vector.
    */
-  TtVector operator-() const { return *this * (-1.0); }
-
-  /**
-   * TT-vector substraction.
-   */
-  TtVector operator-(const TtVector &other) const { return *this + (-other); }
+  friend TtVector operator*(double constant, const TtVector &vector);
 
   /**
    * TT-vector dot product.
    */
-  double Dot(const TtVector &other) const;
-
-  /**
-   * TT-vector norm.
-   */
-  double Norm() const { return std::sqrt(this->Dot(*this)); }
+  friend double Dot(const TtVector &vector1, const TtVector &vector2);
 
  private:
   arma::uword ndim_;
   arma::Col<arma::uword> dims_;
   arma::Col<arma::uword> ranks_;
-  arma::uword maxrank_;
   arma::field<arma::Cube<double>> cores_;
 };
 
 /**
- * Left side scalar multiplication for TT-vector.
- */
-inline TtVector operator*(double constant, const TtVector &vector) {
-  return vector * constant;
-}
-
-/**
- * Dot product betweent two TT-vectors.
- */
-inline double Dot(const TtVector &vector1, const TtVector &vector2) {
-  return vector1.Dot(vector2);
-}
-
-/**
  * Norm of a TT-vector
  */
-inline double Norm(const TtVector &vector) { return vector.Norm(); }
+inline double Norm(const TtVector &vector) {
+  return std::sqrt(Dot(vector, vector));
+}
 
 #endif
