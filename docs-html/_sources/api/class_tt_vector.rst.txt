@@ -1,0 +1,16 @@
+.. _exhale_class_class_tt_vector:
+
+Class TtVector
+==============
+
+- Defined in :ref:`file_include_tt_vector.hpp`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: TtVector
+   :members:
+   :protected-members:
+   :undoc-members:

@@ -1,0 +1,54 @@
+
+.. _program_listing_file_include_tt_vector.hpp:
+
+Program Listing for File tt_vector.hpp
+======================================
+
+|exhale_lsh| :ref:`Return to documentation for file <file_include_tt_vector.hpp>` (``include/tt_vector.hpp``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. code-block:: cpp
+
+   #ifndef TT_VECTOR_HPP
+   #define TT_VECTOR_HPP
+   
+   #include <armadillo>
+   #include <cmath>
+   
+   class TtVector {
+    public:
+     TtVector() = default;
+   
+     TtVector(const arma::field<arma::Cube<double>> &cores);
+   
+     ~TtVector() = default;
+   
+     arma::uword NumDims() const { return ndim_; }
+   
+     const arma::Col<arma::uword> &Dims() const { return dims_; }
+   
+     const arma::Col<arma::uword> &Ranks() const { return ranks_; }
+   
+     const arma::Cube<double> &Core(arma::uword i) const { return cores_(i); }
+   
+     double operator()(const arma::Col<arma::uword> &index) const;
+   
+     friend TtVector operator+(const TtVector &vector1, const TtVector &vector2);
+   
+     friend TtVector operator*(double constant, const TtVector &vector);
+   
+     friend double Dot(const TtVector &vector1, const TtVector &vector2);
+   
+    private:
+     arma::uword ndim_;
+     arma::Col<arma::uword> dims_;
+     arma::Col<arma::uword> ranks_;
+     arma::field<arma::Cube<double>> cores_;
+   };
+   
+   inline double Norm(const TtVector &vector) {
+     return std::sqrt(Dot(vector, vector));
+   }
+   
+   #endif

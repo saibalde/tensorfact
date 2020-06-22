@@ -1,0 +1,13 @@
+.. _exhale_function_tt__vector_8hpp_1a6130c81174fc5476cbf5a03c9e5afcbb:
+
+Function Norm
+=============
+
+- Defined in :ref:`file_include_tt_vector.hpp`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: Norm(const TtVector&)
