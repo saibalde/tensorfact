@@ -15,13 +15,6 @@ class TtVector {
   TtVector() = default;
 
   /**
-   * Construct a TT-vector from the dimensions and TT ranks. The cores are all
-   * initialized to zeros.
-   */
-  TtVector(const arma::Col<arma::uword> &dims,
-           const arma::Col<arma::uword> &ranks);
-
-  /**
    * Construct a TT-vector from the cores.
    */
   TtVector(const arma::field<arma::Cube<double>> &cores);

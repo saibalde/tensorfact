@@ -5,30 +5,9 @@
 
 #include "gtest/gtest.h"
 
-TEST(vector, construct_from_dims_and_ranks) {
-  arma::Col<arma::uword> dims({3, 7, 5});
-  arma::Col<arma::uword> ranks({1, 2, 3, 1});
-
-  TtVector tt_vector(dims, ranks);
-
-  ASSERT_TRUE(tt_vector.NumDims() == 3);
-  ASSERT_TRUE(arma::all(tt_vector.Dims() == dims));
-  ASSERT_TRUE(arma::all(tt_vector.Ranks() == ranks));
-
-  ASSERT_TRUE(arma::all(arma::vectorise(
-      arma::abs(tt_vector.Core(0) -
-                arma::Cube<double>(1, 2, 3, arma::fill::zeros)) < 1.0e-15)));
-  ASSERT_TRUE(arma::all(arma::vectorise(
-      arma::abs(tt_vector.Core(1) -
-                arma::Cube<double>(2, 3, 7, arma::fill::zeros)) < 1.0e-15)));
-  ASSERT_TRUE(arma::all(arma::vectorise(
-      arma::abs(tt_vector.Core(2) -
-                arma::Cube<double>(3, 1, 5, arma::fill::zeros)) < 1.0e-15)));
-}
-
 /**
- * Create TT-Vector with X(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1} given
- * the dimensions
+ * Create TT-Vector \f$v(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1}\f$ given
+ * the dimensions.
  */
 TtVector CreateTestTtVector(const arma::Col<arma::uword> &dims) {
   arma::uword ndim = dims.n_elem;
@@ -67,7 +46,7 @@ TtVector CreateTestTtVector(const arma::Col<arma::uword> &dims) {
   return TtVector(cores);
 }
 
-TEST(vector, construct_from_cores) {
+TEST(vector, construct) {
   TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
 
   ASSERT_TRUE(tt_vector.NumDims() == 4);

@@ -2,24 +2,6 @@
 
 #include <stdexcept>
 
-TtVector::TtVector(const arma::Col<arma::uword> &dims,
-                   const arma::Col<arma::uword> &ranks) {
-  ndim_ = dims.n_elem;
-
-  dims_ = dims;
-
-  if ((ranks.n_elem != ndim_ + 1) || (ranks[0] != 1) || (ranks[ndim_] != 1)) {
-    // raise error
-    // dimension and rank specifications are incompatible with TT format
-  }
-  ranks_ = ranks;
-
-  cores_.set_size(ndim_);
-  for (arma::uword i = 0; i < ndim_; ++i) {
-    cores_[i].zeros(ranks[i], ranks[i + 1], dims[i]);
-  }
-}
-
 TtVector::TtVector(const arma::field<arma::Cube<double>> &cores)
     : cores_(cores) {
   ndim_ = cores.n_elem;
