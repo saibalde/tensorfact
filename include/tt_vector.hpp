@@ -6,6 +6,18 @@
 
 /**
  * TT representation of a multidimensional vector
+ *
+ * A TT-vector is a memory-efficient representation of a multidimensional array
+ * \f$v(i_0, \ldots, i_{d - 1})\f$ where each of the entries are computed as
+ * \f[
+ *     v(i_0, \ldots, i_{d - 1}) = v_0(i_0) \cdots v_{d - 1}(i_{d - 1})
+ * \f]
+ * Here \f$v_k(i_k)\f$ is the \f$i_k\f$-th slice of the 3D array \f$v_k\f$, also
+ * referred to as the \f$k\f$-th TT core of \f$v\f$. Each of these slices are
+ * \f$r_k \times r_{k + 1}\f$ dimensional matrices, with \f$r_0 = r_d = 1\f$.
+ * Assuming \f$n_k \sim n\f$ and \f$r_k \sim r\f$, this reduces the storage
+ * complexity \f$\mathcal{O}(n^d)\f$ of the full tensor to
+ * \f$\mathcal{O}(d n r^2)\f$ in the TT format.
  */
 class TtVector {
  public:
