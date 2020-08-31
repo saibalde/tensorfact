@@ -6,6 +6,8 @@
 #include <limits>
 #include <stdexcept>
 
+#include "truncated_svd.hpp"
+
 /// @brief TT representation of a multidimensional vector
 ///
 /// A TT-vector is a memory-efficient representation of a multidimensional array
@@ -159,30 +161,11 @@ TtVector<Real, Index>::TtVector(const arma::Col<Real> &array,
             arma::Col<Real> s;
             arma::Mat<Real> V;
 
-            bool status = arma::svd(U, s, V, C);
-            if (!status) {
-                throw std::runtime_error(
-                    "TtVector::TtVector() - Could not compute SVD");
-            }
+            truncatedSvd<Real, Index>(C, deltaSquare, U, s, V, ranks_(d + 1));
 
-            ranks_(d + 1) = s.n_elem;
-            Real residue = 0.0;
-            while (true) {
-                residue += std::pow(s(ranks_(d + 1) - 1), 2);
-                if (residue > deltaSquare) {
-                    break;
-                }
-                ranks_(d + 1) -= 1;
-            }
-
-            arma::Mat<Real> A = U.cols(0, ranks_(d + 1) - 1);
-            arma::Mat<Real> B =
-                arma::diagmat(s(arma::span(0, ranks_(d + 1) - 1))) *
-                V.cols(0, ranks_(d + 1) - 1).t();
-
-            arma::Cube<Real> D(A.memptr(), ranks_(d), size_(d), ranks_(d + 1),
+            arma::Cube<Real> D(U.memptr(), ranks_(d), size_(d), ranks_(d + 1),
                                true, false);
-            arrayCopy = arma::vectorise(B);
+            arrayCopy = arma::vectorise(arma::diagmat(s) * V.t());
 
             cores_(d).set_size(ranks_(d), ranks_(d + 1), size_(d));
             for (int k = 0; k < size_(d); ++k) {
