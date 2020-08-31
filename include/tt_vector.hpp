@@ -28,6 +28,10 @@ public:
     /// Construct a TT-vector from the cores
     TtVector(const arma::field<arma::Cube<Real>> &cores);
 
+    /// Construct a TT-vector from full tensor using TT-SVD
+    TtVector(const arma::Col<Real> &array, const arma::Col<Index> &size,
+             Real relAcc = std::numeric_limits<Real>::epsilon());
+
     /// Default destructor
     ~TtVector() = default;
 
@@ -113,6 +117,86 @@ TtVector<Real, Index>::TtVector(const arma::field<arma::Cube<Real>> &cores)
     ranks_[ndim_] = 1;
 
     cores_ = cores;
+}
+
+template <typename Real, typename Index>
+TtVector<Real, Index>::TtVector(const arma::Col<Real> &array,
+                                const arma::Col<Index> &size, Real relAcc) {
+    if (!arma::all(size > 0)) {
+        throw std::logic_error(
+            "TtVector::TtVector() - Entries of the size vector must be "
+            "positive");
+    }
+
+    if (array.n_elem != arma::prod(size)) {
+        throw std::logic_error(
+            "TtVector::TtVector() - Number of array elements and array size "
+            "does not match");
+    }
+
+    if (relAcc < std::numeric_limits<Real>::epsilon()) {
+        throw std::logic_error(
+            "TtVector::TtVector() - Relative accuracy is too small");
+    }
+
+    ndim_ = size.n_elem;
+    size_ = size;
+    ranks_ = arma::Col<Index>(ndim_ + 1);
+    cores_ = arma::field<arma::Cube<Real>>(ndim_);
+
+    const Real deltaSquare = std::pow(relAcc, 2) / (ndim_ - 1);
+
+    arma::Col<Real> arrayCopy(array);
+    ranks_(0) = 1;
+    for (Index d = 0; d < ndim_; ++d) {
+        if (d < ndim_ - 1) {
+            arma::Mat<Real> C(arrayCopy.memptr(), ranks_(d) * size_(d),
+                              arrayCopy.n_elem / (ranks_(d) * size_(d)), false,
+                              true);
+
+            arma::Mat<Real> U;
+            arma::Col<Real> s;
+            arma::Mat<Real> V;
+
+            bool status = arma::svd(U, s, V, C);
+            if (!status) {
+                throw std::runtime_error(
+                    "TtVector::TtVector() - Could not compute SVD");
+            }
+
+            ranks_(d + 1) = s.n_elem;
+            Real residue = 0.0;
+            while (true) {
+                residue += std::pow(s(ranks_(d + 1) - 1), 2);
+                if (residue > deltaSquare) {
+                    break;
+                }
+                ranks_(d + 1) -= 1;
+            }
+
+            arma::Mat<Real> A = U.cols(0, ranks_(d + 1) - 1);
+            arma::Mat<Real> B =
+                arma::diagmat(s(arma::span(0, ranks_(d + 1) - 1))) *
+                V.cols(0, ranks_(d + 1) - 1).t();
+
+            arma::Cube<Real> D(A.memptr(), ranks_(d), size_(d), ranks_(d + 1),
+                               true, false);
+            arrayCopy = arma::vectorise(B);
+
+            cores_(d).set_size(ranks_(d), ranks_(d + 1), size_(d));
+            for (int k = 0; k < size_(d); ++k) {
+                for (int j = 0; j < ranks_(d + 1); ++j) {
+                    for (int i = 0; i < ranks_(d); ++i) {
+                        cores_(d)(i, j, k) = D(i, k, j);
+                    }
+                }
+            }
+        } else {
+            ranks_(d + 1) = 1;
+            cores_(d) = arma::Cube<Real>(arrayCopy.memptr(), ranks_(d),
+                                         ranks_(d + 1), size_(d), true, false);
+        }
+    }
 }
 
 template <typename Real, typename Index>

@@ -56,7 +56,7 @@ TtVector<Real, Index> createTestTtVector(const arma::Col<Index> &dims) {
     return TtVector<Real, Index>(cores);
 }
 
-TEST(vector, construct) {
+TEST(vector, construct_core) {
     TtVector<float, int> tt_vector =
         createTestTtVector<float, int>({5, 3, 6, 4});
 
@@ -64,6 +64,43 @@ TEST(vector, construct) {
     ASSERT_TRUE(arma::all(tt_vector.size() == arma::Col<int>({5, 3, 6, 4})));
     ASSERT_TRUE(
         arma::all(tt_vector.ranks() == arma::Col<int>({1, 2, 2, 2, 1})));
+}
+
+TEST(vector, construct_svd) {
+    arma::Col<int> size{3, 4, 5, 6};
+    int numel = arma::prod(size);
+    arma::Col<float> array(numel);
+
+    for (int l = 0; l < 6; ++l) {
+        for (int k = 0; k < 5; ++k) {
+            for (int j = 0; j < 4; ++j) {
+                for (int i = 0; i < 3; ++i) {
+                    array(i + 3 * j + 12 * k + 60 * l) = i + j + k + l;
+                }
+            }
+        }
+    }
+
+    TtVector<float, int> tt_vector(array, size, 1.0e-04f);
+
+    auto ranks = tt_vector.ranks();
+    ASSERT_EQ(ranks(0), 1);
+    ASSERT_EQ(ranks(1), 2);
+    ASSERT_EQ(ranks(2), 2);
+    ASSERT_EQ(ranks(3), 2);
+    ASSERT_EQ(ranks(4), 1);
+
+    for (int l = 0; l < 6; ++l) {
+        for (int k = 0; k < 5; ++k) {
+            for (int j = 0; j < 4; ++j) {
+                for (int i = 0; i < 3; ++i) {
+                    ASSERT_TRUE(isApproxEqual<float>(
+                        tt_vector({i, j, k, l}), i + j + k + l,
+                        1000 * std::numeric_limits<float>::epsilon()));
+                }
+            }
+        }
+    }
 }
 
 TEST(vector, vector_addition) {
