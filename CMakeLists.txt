@@ -4,6 +4,7 @@ project(TensorTrain LANGUAGES CXX VERSION 0.1.0)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 find_package(Armadillo REQUIRED)
+find_package(Doxygen)
 
 add_subdirectory(src)
 
@@ -20,6 +21,6 @@ if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
     option(TensorTrain_ENABLE_DOCS "Build package documentation" ON)
 endif()
 
-if(TensorTrain_ENABLE_DOCS)
+if(TensorTrain_ENABLE_DOCS AND DOXYGEN_FOUND)
     add_subdirectory(docs)
 endif()
