@@ -81,7 +81,8 @@ TEST(vector, construct_svd) {
         }
     }
 
-    TtVector<float, int> tt_vector(array, size, 1.0e-04f);
+    float relAcc = 10 * std::numeric_limits<float>::epsilon();
+    TtVector<float, int> tt_vector(array, size, relAcc);
 
     auto ranks = tt_vector.ranks();
     ASSERT_EQ(ranks(0), 1);
@@ -90,17 +91,18 @@ TEST(vector, construct_svd) {
     ASSERT_EQ(ranks(3), 2);
     ASSERT_EQ(ranks(4), 1);
 
+    float errorSquare = 0.0f;
     for (int l = 0; l < 6; ++l) {
         for (int k = 0; k < 5; ++k) {
             for (int j = 0; j < 4; ++j) {
                 for (int i = 0; i < 3; ++i) {
-                    ASSERT_TRUE(isApproxEqual<float>(
-                        tt_vector({i, j, k, l}), i + j + k + l,
-                        1000 * std::numeric_limits<float>::epsilon()));
+                    errorSquare +=
+                        std::pow(i + j + k + l - tt_vector({i, j, k, l}), 2.0f);
                 }
             }
         }
     }
+    ASSERT_TRUE(std::sqrt(errorSquare) <= relAcc * arma::norm(array));
 }
 
 TEST(vector, vector_addition) {

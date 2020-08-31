@@ -30,7 +30,7 @@ public:
 
     /// Construct a TT-vector from full tensor using TT-SVD
     TtVector(const arma::Col<Real> &array, const arma::Col<Index> &size,
-             Real relAcc = std::numeric_limits<Real>::epsilon());
+             Real relAcc = 10 * std::numeric_limits<Real>::epsilon());
 
     /// Default destructor
     ~TtVector() = default;
@@ -144,7 +144,8 @@ TtVector<Real, Index>::TtVector(const arma::Col<Real> &array,
     ranks_ = arma::Col<Index>(ndim_ + 1);
     cores_ = arma::field<arma::Cube<Real>>(ndim_);
 
-    const Real deltaSquare = std::pow(relAcc, 2) / (ndim_ - 1);
+    const Real deltaSquare =
+        std::pow(relAcc, 2) * arma::dot(array, array) / (ndim_ - 1);
 
     arma::Col<Real> arrayCopy(array);
     ranks_(0) = 1;
