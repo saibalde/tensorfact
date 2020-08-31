@@ -2,152 +2,153 @@
 
 #include <armadillo>
 #include <cmath>
+#include <limits>
 
 #include "gtest/gtest.h"
 
-/**
- * Create TT-Vector \f$v(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1}\f$ given
- * the dimensions.
- */
-TtVector CreateTestTtVector(const arma::Col<arma::uword> &dims) {
-  arma::uword ndim = dims.n_elem;
+/// Check if floating point values are approximately equal
+template <typename Real>
+bool isApproxEqual(Real a, Real b,
+                   Real eps = 10 * std::numeric_limits<Real>::epsilon()) {
+    return std::abs(a - b) < eps;
+}
 
-  arma::Col<arma::uword> ranks(ndim + 1);
-  ranks(0) = 1;
-  for (arma::uword d = 1; d < ndim; ++d) {
-    ranks(d) = 2;
-  }
-  ranks(ndim) = 1;
+/// Create TT-Vector \f$v(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1}\f$
+template <typename Real, typename Index>
+TtVector<Real, Index> createTestTtVector(const arma::Col<Index> &dims) {
+    constexpr Index ZERO = static_cast<Index>(0);
+    constexpr Index ONE = static_cast<Index>(1);
+    constexpr Index TWO = static_cast<Index>(2);
 
-  arma::field<arma::Cube<double>> cores(ndim);
+    Index ndim = dims.n_elem;
 
-  cores(0).zeros(1, 2, dims(0));
-  for (arma::uword i = 0; i < dims(0); ++i) {
-    cores(0)(0, 0, i) = i;
-    cores(0)(0, 1, i) = 1;
-  }
-
-  for (arma::uword d = 1; d < ndim - 1; ++d) {
-    cores(d).zeros(2, 2, dims(d));
-    for (arma::uword i = 0; i < dims(d); ++i) {
-      cores(d)(0, 0, i) = 1;
-      cores(d)(1, 0, i) = i;
-      cores(d)(0, 1, i) = 0;
-      cores(d)(1, 1, i) = 1;
+    arma::Col<Index> ranks(ndim + ONE);
+    ranks(ZERO) = ONE;
+    for (Index d = ONE; d < ndim; ++d) {
+        ranks(d) = TWO;
     }
-  }
+    ranks(ndim) = ONE;
 
-  cores(ndim - 1).set_size(2, 1, dims(ndim - 1));
-  for (arma::uword i = 0; i < dims(ndim - 1); ++i) {
-    cores(ndim - 1)(0, 0, i) = 1;
-    cores(ndim - 1)(1, 0, i) = i;
-  }
+    arma::field<arma::Cube<Real>> cores(ndim);
 
-  return TtVector(cores);
+    cores(ZERO).zeros(ONE, TWO, dims(ZERO));
+    for (Index i = ZERO; i < dims(ZERO); ++i) {
+        cores(ZERO)(ZERO, ZERO, i) = i;
+        cores(ZERO)(ZERO, ONE, i) = ONE;
+    }
+
+    for (Index d = ONE; d < ndim - ONE; ++d) {
+        cores(d).zeros(TWO, TWO, dims(d));
+        for (Index i = ZERO; i < dims(d); ++i) {
+            cores(d)(ZERO, ZERO, i) = ONE;
+            cores(d)(ONE, ZERO, i) = i;
+            cores(d)(ZERO, ONE, i) = ZERO;
+            cores(d)(ONE, ONE, i) = ONE;
+        }
+    }
+
+    cores(ndim - ONE).set_size(TWO, ONE, dims(ndim - ONE));
+    for (Index i = ZERO; i < dims(ndim - ONE); ++i) {
+        cores(ndim - ONE)(ZERO, ZERO, i) = ONE;
+        cores(ndim - ONE)(ONE, ZERO, i) = i;
+    }
+
+    return TtVector<Real, Index>(cores);
 }
 
 TEST(vector, construct) {
-  TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
+    TtVector<float, int> tt_vector =
+        createTestTtVector<float, int>({5, 3, 6, 4});
 
-  ASSERT_TRUE(tt_vector.NumDims() == 4);
-  ASSERT_TRUE(
-      arma::all(tt_vector.Dims() == arma::Col<arma::uword>({5, 3, 6, 4})));
-  ASSERT_TRUE(
-      arma::all(tt_vector.Ranks() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
-
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) - i - j - k - l) <
-                      1.0e-15);
-        }
-      }
-    }
-  }
+    ASSERT_TRUE(tt_vector.ndim() == 4);
+    ASSERT_TRUE(arma::all(tt_vector.size() == arma::Col<int>({5, 3, 6, 4})));
+    ASSERT_TRUE(
+        arma::all(tt_vector.ranks() == arma::Col<int>({1, 2, 2, 2, 1})));
 }
 
 TEST(vector, vector_addition) {
-  TtVector tt_vector1 = 5.0 * CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
+    TtVector<float, int> tt_vector1 =
+        5.0f * createTestTtVector<float, int>({5, 3, 6, 4});
+    TtVector<float, int> tt_vector2 =
+        -2.0f * createTestTtVector<float, int>({5, 3, 6, 4});
 
-  TtVector tt_vector = tt_vector1 + tt_vector2;
+    TtVector<float, int> tt_vector = tt_vector1 + tt_vector2;
 
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          ASSERT_TRUE(std::abs(tt_vector({i, j, k, l}) -
-                               3.0 * (i + j + k + l)) < 1.0e-15);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_TRUE(isApproxEqual<float>(tt_vector({i, j, k, l}),
+                                                     3.0f * (i + j + k + l)));
+                }
+            }
         }
-      }
     }
-  }
 }
 
 TEST(vector, scalar_multiplication) {
-  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = 2.0 * tt_vector1;
+    TtVector<float, int> tt_vector1 =
+        createTestTtVector<float, int>({5, 3, 6, 4});
+    TtVector<float, int> tt_vector2 = 2.0f * tt_vector1;
 
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          ASSERT_TRUE(std::abs(tt_vector2({i, j, k, l}) -
-                               2.0 * (i + j + k + l)) < 1.0e-15);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_TRUE(isApproxEqual<float>(tt_vector2({i, j, k, l}),
+                                                     2.0f * (i + j + k + l)));
+                }
+            }
         }
-      }
     }
-  }
 }
 
 TEST(vector, dot_product) {
-  TtVector tt_vector1 = CreateTestTtVector({5, 3, 6, 4});
-  TtVector tt_vector2 = -2.0 * CreateTestTtVector({5, 3, 6, 4});
+    TtVector<float, int> tt_vector1 =
+        createTestTtVector<float, int>({5, 3, 6, 4});
+    TtVector<float, int> tt_vector2 =
+        -2.0f * createTestTtVector<float, int>({5, 3, 6, 4});
 
-  double obtained_value = Dot(tt_vector1, tt_vector2);
+    float obtained_value = dot(tt_vector1, tt_vector2);
 
-  double expected_value = 0.0;
-
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          expected_value += std::pow(i + j + k + l, 2.0);
+    float expected_value = 0.0f;
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    expected_value += std::pow(i + j + k + l, 2.0f);
+                }
+            }
         }
-      }
     }
-  }
+    expected_value *= -2.0f;
 
-  expected_value *= -2.0;
-
-  ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
+    ASSERT_TRUE(isApproxEqual<float>(obtained_value, expected_value));
 }
 
 TEST(vector, vector_norm) {
-  TtVector tt_vector = CreateTestTtVector({5, 3, 6, 4});
+    TtVector<float, int> tt_vector =
+        createTestTtVector<float, int>({5, 3, 6, 4});
 
-  double obtained_value = Norm(tt_vector);
+    float obtained_value = norm2(tt_vector);
 
-  double expected_value = 0.0;
-
-  for (arma::uword l = 0; l < 4; ++l) {
-    for (arma::uword k = 0; k < 6; ++k) {
-      for (arma::uword j = 0; j < 3; ++j) {
-        for (arma::uword i = 0; i < 5; ++i) {
-          expected_value += std::pow(i + j + k + l, 2.0);
+    float expected_value = 0.0f;
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    expected_value += std::pow(i + j + k + l, 2.0f);
+                }
+            }
         }
-      }
     }
-  }
+    expected_value = std::sqrt(expected_value);
 
-  expected_value = std::sqrt(expected_value);
-
-  ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
+    ASSERT_TRUE(isApproxEqual<float>(obtained_value, expected_value));
 }
 
 int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleTest(&argc, argv);
 
-  return RUN_ALL_TESTS();
+    return RUN_ALL_TESTS();
 }

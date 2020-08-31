@@ -1,12 +1,22 @@
-cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(TensorTrain LANGUAGES CXX VERSION 0.1.0)
 
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${ARMADILLO_PREFIX} ${CMAKE_PREFIX_PATH})
 
 find_package(Armadillo REQUIRED)
 find_package(Doxygen)
 
-add_subdirectory(src)
+# create interface target
+
+add_library(tt INTERFACE)
+target_include_directories(tt INTERFACE ${PROJECT_SOURCE_DIR}/include
+                                        ${ARMADILLO_INCLUDE_DIRS})
+target_link_libraries(tt INTERFACE ${ARMADILLO_LIBRARIES})
+target_compile_features(tt INTERFACE cxx_std_11)
+
+add_library(tt::tt ALIAS tt)
+
+# testing
 
 if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
     option(TensorTrain_ENABLE_TESTS "Build package tests" ON)
@@ -16,6 +26,8 @@ if(TensorTrain_ENABLE_TESTS)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+# documentation
 
 if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
     option(TensorTrain_ENABLE_DOCS "Build package documentation" ON)
