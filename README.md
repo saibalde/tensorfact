@@ -1,3 +1,3 @@
-# tensortrain
+# tensorfact
 
-An implementation of the tensor-train format in C++.
+A C++ libary implementing various tensor factorizations.
