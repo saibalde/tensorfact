@@ -206,54 +206,6 @@ TEST(tt_tensor, Round) {
     }
 }
 
-TEST(tt_tensor, AddZeroPaddingBack) {
-    tensorfact::TtTensor<float> tt_tensor_1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor_2 =
-        tt_tensor_1.AddZeroPaddingBack(1, 4);
-
-    for (arma::uword l = 0; l < 4; ++l) {
-        for (arma::uword k = 0; k < 6; ++k) {
-            for (arma::uword j = 0; j < 7; ++j) {
-                for (arma::uword i = 0; i < 5; ++i) {
-                    if (j < 3) {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor_1({i, j, k, l}),
-                            tt_tensor_2({i, j, k, l})));
-                    } else {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            0.0f, tt_tensor_2({i, j, k, l})));
-                    }
-                }
-            }
-        }
-    }
-}
-
-TEST(tt_tensor, AddZeroPaddingFront) {
-    tensorfact::TtTensor<float> tt_tensor_1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor_2 =
-        tt_tensor_1.AddZeroPaddingFront(2, 3);
-
-    for (arma::uword l = 0; l < 4; ++l) {
-        for (arma::uword k = 0; k < 9; ++k) {
-            for (arma::uword j = 0; j < 3; ++j) {
-                for (arma::uword i = 0; i < 5; ++i) {
-                    if (k < 3) {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            0.0f, tt_tensor_2({i, j, k, l})));
-                    } else {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor_1({i, j, k - 3, l}),
-                            tt_tensor_2({i, j, k, l})));
-                    }
-                }
-            }
-        }
-    }
-}
-
 TEST(tt_tensor, Concatenate) {
     const tensorfact::TtTensor<float> tt_tensor_1 =
         CreateTestTtTensor<float>({5, 3, 6, 4});

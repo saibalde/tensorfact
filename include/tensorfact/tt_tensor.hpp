@@ -73,17 +73,17 @@ public:
     /// Rounding
     TtTensor<Real> Round(Real rel_acc) const;
 
+    /// Concatenation
+    TtTensor<Real> Concatenate(const TtTensor<Real> &other, arma::uword dim,
+                               Real rel_acc) const;
+
+private:
     /// Zero-padding to the back of a dimension
     TtTensor<Real> AddZeroPaddingBack(arma::uword dim, arma::uword pad) const;
 
     /// Zero-padding to the front of a dimension
     TtTensor<Real> AddZeroPaddingFront(arma::uword dim, arma::uword pad) const;
 
-    /// Concatenation
-    TtTensor<Real> Concatenate(const TtTensor<Real> &other, arma::uword dim,
-                               Real rel_acc) const;
-
-private:
     arma::uword ndim_;
     arma::Col<arma::uword> size_;
     arma::Col<arma::uword> rank_;
