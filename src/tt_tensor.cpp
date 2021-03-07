@@ -79,8 +79,8 @@ tensorfact::TtTensor<Real>::TtTensor(const arma::Col<Real> &array,
             tensorfact::TruncatedSvd<Real>(C, delta_squared, U, s, V,
                                            rank_(d + 1));
 
-            core_(d) = arma::Cube<Real>(U.memptr(), rank_(d), size_(d),
-                                        rank_(d + 1));
+            core_(d) =
+                arma::Cube<Real>(U.memptr(), rank_(d), size_(d), rank_(d + 1));
 
             array_copy = arma::vectorise(arma::diagmat(s) * V.t());
         } else {
@@ -280,13 +280,15 @@ Real tensorfact::TtTensor<Real>::Dot(
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const {
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(
+    Real rel_acc) const {
     if (rel_acc < std::numeric_limits<Real>::epsilon()) {
         return *this;
     }
 
     // truncation parameter
-    const Real delta_squared = std::pow(rel_acc, 2.0) * this->Dot(*this) / (ndim_ - 1);
+    const Real delta_squared =
+        std::pow(rel_acc, 2.0) * this->Dot(*this) / (ndim_ - 1);
 
     // make a copy of the cores and ranks
     arma::field<arma::Cube<Real>> core(ndim_);
@@ -301,8 +303,10 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const
 
     // right-to-left orthogonalization
     for (arma::uword d = ndim_ - 1; d > 0; --d) {
-        arma::Mat<Real> M1(core(d).memptr(), rank(d), size_(d) * rank(d + 1), false, true);
-        arma::Mat<Real> M2(core(d - 1).memptr(), rank(d - 1) * size_(d - 1), rank(d), false, true);
+        arma::Mat<Real> M1(core(d).memptr(), rank(d), size_(d) * rank(d + 1),
+                           false, true);
+        arma::Mat<Real> M2(core(d - 1).memptr(), rank(d - 1) * size_(d - 1),
+                           rank(d), false, true);
 
         arma::Mat<Real> Q;
         arma::Mat<Real> R;
@@ -316,7 +320,8 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const
 
         {
             arma::Mat<Real> temp = M2 * R.t();
-            core(d - 1) = arma::Cube<Real>(temp.memptr(), rank(d - 1), size_(d - 1), r);
+            core(d - 1) =
+                arma::Cube<Real>(temp.memptr(), rank(d - 1), size_(d - 1), r);
         }
 
         rank(d) = r;
@@ -324,8 +329,10 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const
 
     // left-to-right compression
     for (arma::uword d = 0; d < ndim_ - 1; ++d) {
-        arma::Mat<Real> M1(core(d).memptr(), rank(d) * size_(d), rank(d + 1), false, true);
-        arma::Mat<Real> M2(core(d + 1).memptr(), rank(d + 1), size_(d + 1) * rank(d + 2), false, true);
+        arma::Mat<Real> M1(core(d).memptr(), rank(d) * size_(d), rank(d + 1),
+                           false, true);
+        arma::Mat<Real> M2(core(d + 1).memptr(), rank(d + 1),
+                           size_(d + 1) * rank(d + 2), false, true);
 
         arma::Mat<Real> U;
         arma::Col<Real> s;
@@ -333,16 +340,73 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const
         arma::uword r;
         tensorfact::TruncatedSvd<Real>(M1, delta_squared, U, s, V, r);
 
-        {
-            core(d) = arma::Cube<Real>(U.memptr(), rank(d), size_(d), r);
-        }
+        core(d) = arma::Cube<Real>(U.memptr(), rank(d), size_(d), r);
 
         {
             arma::Mat<Real> temp = arma::diagmat(s) * V.t() * M2;
-            core(d + 1) = arma::Cube<Real>(temp.memptr(), r, size_(d + 1), rank(d + 2));
+            core(d + 1) =
+                arma::Cube<Real>(temp.memptr(), r, size_(d + 1), rank(d + 2));
         }
 
         rank(d + 1) = r;
+    }
+
+    return tensorfact::TtTensor<Real>(core);
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
+    arma::uword dim, arma::uword pad) const {
+    arma::field<arma::Cube<Real>> core(ndim_);
+
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        if (d != dim) {
+            core(d) = core_(d);
+        }
+    }
+
+    core(dim).set_size(rank_(dim), size_(dim) + pad, rank_(dim + 1));
+    for (arma::uword k = 0; k < rank_(dim + 1); ++k) {
+        for (arma::uword j = 0; j < size_(dim); ++j) {
+            for (arma::uword i = 0; i < rank_(dim); ++i) {
+                core(dim)(i, j, k) = core_(dim)(i, j, k);
+            }
+        }
+
+        for (arma::uword j = 0; j < pad; ++j) {
+            for (arma::uword i = 0; i < rank_(dim); ++i) {
+                core(dim)(i, j + size_(dim), k) = static_cast<Real>(0);
+            }
+        }
+    }
+
+    return tensorfact::TtTensor<Real>(core);
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
+    arma::uword dim, arma::uword pad) const {
+    arma::field<arma::Cube<Real>> core(ndim_);
+
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        if (d != dim) {
+            core(d) = core_(d);
+        }
+    }
+
+    core(dim).set_size(rank_(dim), size_(dim) + pad, rank_(dim + 1));
+    for (arma::uword k = 0; k < rank_(dim + 1); ++k) {
+        for (arma::uword j = 0; j < pad; ++j) {
+            for (arma::uword i = 0; i < rank_(dim); ++i) {
+                core(dim)(i, j, k) = static_cast<Real>(0);
+            }
+        }
+
+        for (arma::uword j = 0; j < size_(dim); ++j) {
+            for (arma::uword i = 0; i < rank_(dim); ++i) {
+                core(dim)(i, j + pad, k) = core_(dim)(i, j, k);
+            }
+        }
     }
 
     return tensorfact::TtTensor<Real>(core);

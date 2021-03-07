@@ -73,6 +73,12 @@ public:
     /// Rounding
     TtTensor<Real> Round(Real rel_acc) const;
 
+    /// Zero-padding to the back of a dimension
+    TtTensor<Real> AddZeroPaddingBack(arma::uword dim, arma::uword pad) const;
+
+    /// Zero-padding to the front of a dimension
+    TtTensor<Real> AddZeroPaddingFront(arma::uword dim, arma::uword pad) const;
+
 private:
     arma::uword ndim_;
     arma::Col<arma::uword> size_;
