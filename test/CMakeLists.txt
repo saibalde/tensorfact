@@ -1,8 +1,10 @@
-macro(TensorTrain_add_test TESTNAME)
+macro(TensorFact_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN})
-    target_link_libraries(${TESTNAME} tt:tt GTest::gtest GTest::gtest_main)
+    target_include_directories(${TESTNAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+    target_link_libraries(${TESTNAME} PRIVATE TensorFact::tensorfact GTest::gtest GTest::gtest_main)
     add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
     set_target_properties(${TESTNAME} PROPERTIES FOLDER test)
 endmacro()
 
-TensorTrain_add_test(tt_vector_test tt_vector_test.cpp)
+TensorFact_add_test(svd_test svd_test.cpp)
+TensorFact_add_test(tt_tensor_test tt_tensor_test.cpp)
