@@ -185,6 +185,25 @@ TEST(tt_tensor, Norm) {
     ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
 }
 
+TEST(tt_tensor, Round) {
+    const tensorfact::TtTensor<float> tt_tensor = CreateTestTtTensor<float>({5, 3, 6, 4});
+
+    const tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
+    const tensorfact::TtTensor<float> tt_tensor_2 = tt_tensor + tt_tensor;
+    const tensorfact::TtTensor<float> tt_tensor_3 = tt_tensor_2.Round(1.0e-06f);
+
+    ASSERT_TRUE((tt_tensor_2 - tt_tensor_3).Norm2() / tt_tensor_2.Norm2() < 5.0e-04f);
+
+    const arma::uword &ndim = tt_tensor_1.NDim();
+
+    const arma::Col<arma::uword> &rank_1 = tt_tensor_1.Rank();
+    const arma::Col<arma::uword> &rank_3 = tt_tensor_3.Rank();
+
+    for (arma::uword d = 0; d <= ndim; ++d) {
+        ASSERT_TRUE(rank_1(d) == rank_3(d));
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 

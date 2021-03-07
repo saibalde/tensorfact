@@ -70,6 +70,9 @@ public:
     /// 2-norm
     Real Norm2() const { return std::sqrt(this->Dot(*this)); }
 
+    /// Rounding
+    TtTensor<Real> Round(Real rel_acc) const;
+
 private:
     arma::uword ndim_;
     arma::Col<arma::uword> size_;

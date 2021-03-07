@@ -279,6 +279,75 @@ Real tensorfact::TtTensor<Real>::Dot(
     return temp_2d(0, 0);
 }
 
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Round(Real rel_acc) const {
+    if (rel_acc < std::numeric_limits<Real>::epsilon()) {
+        return *this;
+    }
+
+    // truncation parameter
+    const Real delta_squared = std::pow(rel_acc, 2.0) * this->Dot(*this) / (ndim_ - 1);
+
+    // make a copy of the cores and ranks
+    arma::field<arma::Cube<Real>> core(ndim_);
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        core(d) = core_(d);
+    }
+
+    arma::Col<arma::uword> rank(ndim_ + 1);
+    for (arma::uword d = 0; d <= ndim_; ++d) {
+        rank(d) = rank_(d);
+    }
+
+    // right-to-left orthogonalization
+    for (arma::uword d = ndim_ - 1; d > 0; --d) {
+        arma::Mat<Real> M1(core(d).memptr(), rank(d), size_(d) * rank(d + 1), false, true);
+        arma::Mat<Real> M2(core(d - 1).memptr(), rank(d - 1) * size_(d - 1), rank(d), false, true);
+
+        arma::Mat<Real> Q;
+        arma::Mat<Real> R;
+        arma::qr_econ(Q, R, M1.t());
+        arma::uword r = Q.n_cols;
+
+        {
+            arma::Mat<Real> temp = Q.t();
+            core(d) = arma::Cube<Real>(temp.memptr(), r, size_(d), rank(d + 1));
+        }
+
+        {
+            arma::Mat<Real> temp = M2 * R.t();
+            core(d - 1) = arma::Cube<Real>(temp.memptr(), rank(d - 1), size_(d - 1), r);
+        }
+
+        rank(d) = r;
+    }
+
+    // left-to-right compression
+    for (arma::uword d = 0; d < ndim_ - 1; ++d) {
+        arma::Mat<Real> M1(core(d).memptr(), rank(d) * size_(d), rank(d + 1), false, true);
+        arma::Mat<Real> M2(core(d + 1).memptr(), rank(d + 1), size_(d + 1) * rank(d + 2), false, true);
+
+        arma::Mat<Real> U;
+        arma::Col<Real> s;
+        arma::Mat<Real> V;
+        arma::uword r;
+        tensorfact::TruncatedSvd<Real>(M1, delta_squared, U, s, V, r);
+
+        {
+            core(d) = arma::Cube<Real>(U.memptr(), rank(d), size_(d), r);
+        }
+
+        {
+            arma::Mat<Real> temp = arma::diagmat(s) * V.t() * M2;
+            core(d + 1) = arma::Cube<Real>(temp.memptr(), r, size_(d + 1), rank(d + 2));
+        }
+
+        rank(d + 1) = r;
+    }
+
+    return tensorfact::TtTensor<Real>(core);
+}
+
 // explicit instantiations -----------------------------------------------------
 
 template class tensorfact::TtTensor<float>;
