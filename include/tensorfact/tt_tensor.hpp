@@ -79,6 +79,10 @@ public:
     /// Zero-padding to the front of a dimension
     TtTensor<Real> AddZeroPaddingFront(arma::uword dim, arma::uword pad) const;
 
+    /// Concatenation
+    TtTensor<Real> Concatenate(const TtTensor<Real> &other, arma::uword dim,
+                               Real rel_acc) const;
+
 private:
     arma::uword ndim_;
     arma::Col<arma::uword> size_;

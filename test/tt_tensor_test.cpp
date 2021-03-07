@@ -254,6 +254,34 @@ TEST(tt_tensor, AddZeroPaddingFront) {
     }
 }
 
+TEST(tt_tensor, Concatenate) {
+    const tensorfact::TtTensor<float> tt_tensor_1 =
+        CreateTestTtTensor<float>({5, 3, 6, 4});
+    const tensorfact::TtTensor<float> tt_tensor_2 =
+        CreateTestTtTensor<float>({5, 7, 6, 4});
+
+    const tensorfact::TtTensor<float> tt_tensor =
+        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-06f);
+
+    for (arma::uword l = 0; l < 4; ++l) {
+        for (arma::uword k = 0; k < 6; ++k) {
+            for (arma::uword j = 0; j < 10; ++j) {
+                for (arma::uword i = 0; i < 5; ++i) {
+                    if (j < 3) {
+                        ASSERT_TRUE(IsApproximatelyEqual<float>(
+                            tt_tensor({i, j, k, l}),
+                            tt_tensor_1({i, j, k, l}), 1.0e-04f));
+                    } else {
+                        ASSERT_TRUE(IsApproximatelyEqual<float>(
+                            tt_tensor({i, j, k, l}),
+                            tt_tensor_2({i, j - 3, k, l}), 1.0e-04f));
+                    }
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 

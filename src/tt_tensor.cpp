@@ -412,6 +412,41 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
     return tensorfact::TtTensor<Real>(core);
 }
 
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Concatenate(
+    const tensorfact::TtTensor<Real> &other, arma::uword dim,
+    Real rel_acc) const {
+    if (ndim_ != other.ndim_) {
+        throw std::invalid_argument(
+            "tensorfact::TtTensor::Concatenate() - The dimensionality of the "
+            "two tensor must match");
+    }
+
+    if (dim >= ndim_) {
+        throw std::invalid_argument(
+            "tensorfact::TtTensor::Concatenate() - Cannot concatenate along "
+            "specified dimension");
+    }
+
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        if (d != dim && size_(d) != other.size_(d)) {
+            throw std::invalid_argument(
+                "tensorfact::TtTensor::Concatenate() - Tensor sizes must match "
+                "except along the concatenation dimension");
+        }
+    }
+
+    const arma::uword size_1 = size_(dim);
+    const arma::uword size_2 = other.size_(dim);
+
+    const tensorfact::TtTensor<Real> tensor_1 =
+        this->AddZeroPaddingBack(dim, size_2);
+    const tensorfact::TtTensor<Real> tensor_2 =
+        other.AddZeroPaddingFront(dim, size_1);
+
+    return (tensor_1 + tensor_2).Round(rel_acc);
+}
+
 // explicit instantiations -----------------------------------------------------
 
 template class tensorfact::TtTensor<float>;
