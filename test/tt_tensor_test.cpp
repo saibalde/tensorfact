@@ -63,6 +63,17 @@ TEST(TtTensor, ConstructFromCore) {
         arma::all(tt_tensor.Size() == arma::Col<arma::uword>({5, 3, 6, 4})));
     ASSERT_TRUE(
         arma::all(tt_tensor.Rank() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
+
+    for (arma::uword l = 0; l < 4; ++l) {
+        for (arma::uword k = 0; k < 6; ++k) {
+            for (arma::uword j = 0; j < 3; ++j) {
+                for (arma::uword i = 0; i < 5; ++i) {
+                    ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
+                                         (i + j + k + l)) < 1.0e-05f);
+                }
+            }
+        }
+    }
 }
 
 TEST(TtTensor, FileIO) {
@@ -89,7 +100,7 @@ TEST(TtTensor, FileIO) {
     }
 }
 
-TEST(TtTensor, ConstructWithSvd) {
+TEST(TtTensor, ComputeFromFull) {
     arma::Col<arma::uword> size{3, 4, 5, 6};
     arma::uword numel = arma::prod(size);
     arma::Col<float> array(numel);
@@ -104,8 +115,10 @@ TEST(TtTensor, ConstructWithSvd) {
         }
     }
 
-    float rel_acc = 10 * std::numeric_limits<float>::epsilon();
-    tensorfact::TtTensor<float> tt_tensor(array, size, rel_acc);
+    float rel_acc = 1.0e-05f;
+
+    tensorfact::TtTensor<float> tt_tensor;
+    tt_tensor.ComputeFromFull(array, size, rel_acc);
 
     auto ranks = tt_tensor.Rank();
     ASSERT_EQ(ranks(0), 1);
@@ -125,7 +138,29 @@ TEST(TtTensor, ConstructWithSvd) {
             }
         }
     }
+
     ASSERT_TRUE(std::sqrt(error_squared) <= rel_acc * arma::norm(array));
+}
+
+TEST(TtTensor, Round) {
+    const tensorfact::TtTensor<float> tt_tensor =
+        CreateTestTtTensor<float>({5, 3, 6, 4});
+
+    const tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
+    const tensorfact::TtTensor<float> tt_tensor_2 = tt_tensor + tt_tensor;
+    const tensorfact::TtTensor<float> tt_tensor_3 = tt_tensor_2.Round(1.0e-06f);
+
+    ASSERT_TRUE((tt_tensor_2 - tt_tensor_3).Norm2() / tt_tensor_2.Norm2() <
+                5.0e-04f);
+
+    const arma::uword &ndim = tt_tensor_1.NDim();
+
+    const arma::Col<arma::uword> &rank_1 = tt_tensor_1.Rank();
+    const arma::Col<arma::uword> &rank_3 = tt_tensor_3.Rank();
+
+    for (arma::uword d = 0; d <= ndim; ++d) {
+        ASSERT_TRUE(rank_1(d) == rank_3(d));
+    }
 }
 
 TEST(TtTensor, Addition) {
@@ -159,6 +194,34 @@ TEST(TtTensor, ScalarMultiplication) {
                 for (arma::uword i = 0; i < 5; ++i) {
                     ASSERT_TRUE(IsApproximatelyEqual<float>(
                         tt_tensor2({i, j, k, l}), 2.0f * (i + j + k + l)));
+                }
+            }
+        }
+    }
+}
+
+TEST(TtTensor, Concatenate) {
+    const tensorfact::TtTensor<float> tt_tensor_1 =
+        CreateTestTtTensor<float>({5, 3, 6, 4});
+    const tensorfact::TtTensor<float> tt_tensor_2 =
+        CreateTestTtTensor<float>({5, 7, 6, 4});
+
+    const tensorfact::TtTensor<float> tt_tensor =
+        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-06f);
+
+    for (arma::uword l = 0; l < 4; ++l) {
+        for (arma::uword k = 0; k < 6; ++k) {
+            for (arma::uword j = 0; j < 10; ++j) {
+                for (arma::uword i = 0; i < 5; ++i) {
+                    if (j < 3) {
+                        ASSERT_TRUE(IsApproximatelyEqual<float>(
+                            tt_tensor({i, j, k, l}), tt_tensor_1({i, j, k, l}),
+                            1.0e-04f));
+                    } else {
+                        ASSERT_TRUE(IsApproximatelyEqual<float>(
+                            tt_tensor({i, j, k, l}),
+                            tt_tensor_2({i, j - 3, k, l}), 1.0e-04f));
+                    }
                 }
             }
         }
@@ -207,55 +270,6 @@ TEST(TtTensor, Norm) {
     expected_value = std::sqrt(expected_value);
 
     ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
-}
-
-TEST(TtTensor, Round) {
-    const tensorfact::TtTensor<float> tt_tensor =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-
-    const tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
-    const tensorfact::TtTensor<float> tt_tensor_2 = tt_tensor + tt_tensor;
-    const tensorfact::TtTensor<float> tt_tensor_3 = tt_tensor_2.Round(1.0e-06f);
-
-    ASSERT_TRUE((tt_tensor_2 - tt_tensor_3).Norm2() / tt_tensor_2.Norm2() <
-                5.0e-04f);
-
-    const arma::uword &ndim = tt_tensor_1.NDim();
-
-    const arma::Col<arma::uword> &rank_1 = tt_tensor_1.Rank();
-    const arma::Col<arma::uword> &rank_3 = tt_tensor_3.Rank();
-
-    for (arma::uword d = 0; d <= ndim; ++d) {
-        ASSERT_TRUE(rank_1(d) == rank_3(d));
-    }
-}
-
-TEST(TtTensor, Concatenate) {
-    const tensorfact::TtTensor<float> tt_tensor_1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-    const tensorfact::TtTensor<float> tt_tensor_2 =
-        CreateTestTtTensor<float>({5, 7, 6, 4});
-
-    const tensorfact::TtTensor<float> tt_tensor =
-        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-06f);
-
-    for (arma::uword l = 0; l < 4; ++l) {
-        for (arma::uword k = 0; k < 6; ++k) {
-            for (arma::uword j = 0; j < 10; ++j) {
-                for (arma::uword i = 0; i < 5; ++i) {
-                    if (j < 3) {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor({i, j, k, l}), tt_tensor_1({i, j, k, l}),
-                            1.0e-04f));
-                    } else {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor({i, j, k, l}),
-                            tt_tensor_2({i, j - 3, k, l}), 1.0e-04f));
-                    }
-                }
-            }
-        }
-    }
 }
 
 int main(int argc, char **argv) {

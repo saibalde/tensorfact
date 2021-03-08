@@ -30,10 +30,6 @@ public:
     /// Construct a TT-tensor from the cores
     TtTensor(const arma::field<arma::Cube<Real>> &cores);
 
-    /// Construct a TT-tensor from full tensor using TT-SVD
-    TtTensor(const arma::Col<Real> &array, const arma::Col<arma::uword> &size,
-             Real rel_acc);
-
     /// Default destructor
     ~TtTensor() = default;
 
@@ -58,6 +54,13 @@ public:
     /// Read from file
     void ReadFromFile(const std::string &file_name);
 
+    /// Compute from full tensor using TT-SVD
+    void ComputeFromFull(const arma::Col<Real> &array,
+                         const arma::Col<arma::uword> &size, Real rel_acc);
+
+    /// Rounding
+    TtTensor<Real> Round(Real rel_acc) const;
+
     /// Addition
     TtTensor<Real> operator+(const TtTensor<Real> &other) const;
 
@@ -70,18 +73,15 @@ public:
     /// Scalar division
     TtTensor<Real> operator/(Real alpha) const;
 
+    /// Concatenation
+    TtTensor<Real> Concatenate(const TtTensor<Real> &other, arma::uword dim,
+                               Real rel_acc) const;
+
     /// Dot product
     Real Dot(const TtTensor<Real> &other) const;
 
     /// 2-norm
     Real Norm2() const { return std::sqrt(this->Dot(*this)); }
-
-    /// Rounding
-    TtTensor<Real> Round(Real rel_acc) const;
-
-    /// Concatenation
-    TtTensor<Real> Concatenate(const TtTensor<Real> &other, arma::uword dim,
-                               Real rel_acc) const;
 
 private:
     /// Zero-padding to the back of a dimension
