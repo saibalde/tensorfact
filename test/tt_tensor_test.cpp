@@ -54,7 +54,7 @@ tensorfact::TtTensor<Real> CreateTestTtTensor(
     return tensorfact::TtTensor<Real>(cores);
 }
 
-TEST(tt_tensor, ConstructFromCore) {
+TEST(TtTensor, ConstructFromCore) {
     tensorfact::TtTensor<float> tt_tensor =
         CreateTestTtTensor<float>({5, 3, 6, 4});
 
@@ -65,7 +65,7 @@ TEST(tt_tensor, ConstructFromCore) {
         arma::all(tt_tensor.Rank() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
 }
 
-TEST(tt_tensor, ConstructWithSvd) {
+TEST(TtTensor, ConstructWithSvd) {
     arma::Col<arma::uword> size{3, 4, 5, 6};
     arma::uword numel = arma::prod(size);
     arma::Col<float> array(numel);
@@ -104,7 +104,7 @@ TEST(tt_tensor, ConstructWithSvd) {
     ASSERT_TRUE(std::sqrt(error_squared) <= rel_acc * arma::norm(array));
 }
 
-TEST(tt_tensor, Addition) {
+TEST(TtTensor, Addition) {
     tensorfact::TtTensor<float> tt_tensor1 =
         5.0f * CreateTestTtTensor<float>({5, 3, 6, 4});
     tensorfact::TtTensor<float> tt_tensor2 =
@@ -124,7 +124,7 @@ TEST(tt_tensor, Addition) {
     }
 }
 
-TEST(tt_tensor, ScalarMultiplication) {
+TEST(TtTensor, ScalarMultiplication) {
     tensorfact::TtTensor<float> tt_tensor1 =
         CreateTestTtTensor<float>({5, 3, 6, 4});
     tensorfact::TtTensor<float> tt_tensor2 = 2.0f * tt_tensor1;
@@ -141,7 +141,7 @@ TEST(tt_tensor, ScalarMultiplication) {
     }
 }
 
-TEST(tt_tensor, DotProduct) {
+TEST(TtTensor, DotProduct) {
     tensorfact::TtTensor<float> tt_tensor1 =
         CreateTestTtTensor<float>({5, 3, 6, 4});
     tensorfact::TtTensor<float> tt_tensor2 =
@@ -164,7 +164,7 @@ TEST(tt_tensor, DotProduct) {
     ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
 }
 
-TEST(tt_tensor, Norm) {
+TEST(TtTensor, Norm) {
     tensorfact::TtTensor<float> tt_tensor =
         CreateTestTtTensor<float>({5, 3, 6, 4});
 
@@ -185,7 +185,7 @@ TEST(tt_tensor, Norm) {
     ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
 }
 
-TEST(tt_tensor, Round) {
+TEST(TtTensor, Round) {
     const tensorfact::TtTensor<float> tt_tensor =
         CreateTestTtTensor<float>({5, 3, 6, 4});
 
@@ -206,7 +206,7 @@ TEST(tt_tensor, Round) {
     }
 }
 
-TEST(tt_tensor, Concatenate) {
+TEST(TtTensor, Concatenate) {
     const tensorfact::TtTensor<float> tt_tensor_1 =
         CreateTestTtTensor<float>({5, 3, 6, 4});
     const tensorfact::TtTensor<float> tt_tensor_2 =
