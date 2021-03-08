@@ -43,12 +43,12 @@ TEST(CpTensor, FileIO) {
     {
         const tensorfact::CpTensor<double> cp_tensor =
             ProductOfIndicesCpTensor<double>({3, 2, 5, 4});
-        cp_tensor.WriteToFile("cp_tensor_1.txt");
+        cp_tensor.WriteToFile("cp_tensor.txt");
     }
 
     {
         tensorfact::CpTensor<double> cp_tensor;
-        cp_tensor.ReadFromFile("cp_tensor_1.txt");
+        cp_tensor.ReadFromFile("cp_tensor.txt");
 
         for (arma::uword l = 0; l < 4; ++l) {
             for (arma::uword k = 0; k < 5; ++k) {
