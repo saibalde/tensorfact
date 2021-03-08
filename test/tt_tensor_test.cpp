@@ -2,21 +2,11 @@
 
 #include <armadillo>
 #include <cmath>
-#include <limits>
 
 #include "gtest/gtest.h"
 
-/// Check if floating point values are approximately equal
 template <typename Real>
-bool IsApproximatelyEqual(Real a, Real b,
-                          Real eps = 10 *
-                                     std::numeric_limits<Real>::epsilon()) {
-    return std::abs(a - b) < eps;
-}
-
-/// Create TT-Vector \f$v(i_0, ..., i_{d - 1}) = i_0 + ... + i_{d - 1}\f$
-template <typename Real>
-tensorfact::TtTensor<Real> CreateTestTtTensor(
+tensorfact::TtTensor<Real> SumOfIndicesTtTensor(
     const arma::Col<arma::uword> &dims) {
     arma::uword ndim = dims.n_elem;
 
@@ -31,7 +21,7 @@ tensorfact::TtTensor<Real> CreateTestTtTensor(
 
     cores(0).zeros(1, dims(0), 2);
     for (arma::uword i = 0; i < dims(0); ++i) {
-        cores(0)(0, i, 0) = i;
+        cores(0)(0, i, 0) = static_cast<Real>(i);
         cores(0)(0, i, 1) = 1;
     }
 
@@ -39,7 +29,7 @@ tensorfact::TtTensor<Real> CreateTestTtTensor(
         cores(d).zeros(2, dims(d), 2);
         for (arma::uword i = 0; i < dims(d); ++i) {
             cores(d)(0, i, 0) = 1;
-            cores(d)(1, i, 0) = i;
+            cores(d)(1, i, 0) = static_cast<Real>(i);
             cores(d)(0, i, 1) = 0;
             cores(d)(1, i, 1) = 1;
         }
@@ -48,7 +38,7 @@ tensorfact::TtTensor<Real> CreateTestTtTensor(
     cores(ndim - 1).set_size(2, dims(ndim - 1), 1);
     for (arma::uword i = 0; i < dims(ndim - 1); ++i) {
         cores(ndim - 1)(0, i, 0) = 1;
-        cores(ndim - 1)(1, i, 0) = i;
+        cores(ndim - 1)(1, i, 0) = static_cast<Real>(i);
     }
 
     return tensorfact::TtTensor<Real>(cores);
@@ -56,7 +46,7 @@ tensorfact::TtTensor<Real> CreateTestTtTensor(
 
 TEST(TtTensor, ConstructFromCore) {
     tensorfact::TtTensor<float> tt_tensor =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
+        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
 
     ASSERT_TRUE(tt_tensor.NDim() == 4);
     ASSERT_TRUE(
@@ -79,7 +69,7 @@ TEST(TtTensor, ConstructFromCore) {
 TEST(TtTensor, FileIO) {
     {
         const tensorfact::TtTensor<double> tt_tensor =
-            CreateTestTtTensor<double>({5, 3, 6, 4});
+            SumOfIndicesTtTensor<double>({5, 3, 6, 4});
         tt_tensor.WriteToFile("tt_tensor.txt");
     }
 
@@ -143,15 +133,15 @@ TEST(TtTensor, ComputeFromFull) {
 }
 
 TEST(TtTensor, Round) {
-    const tensorfact::TtTensor<float> tt_tensor =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
+    const tensorfact::TtTensor<double> tt_tensor =
+        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
 
-    const tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
-    const tensorfact::TtTensor<float> tt_tensor_2 = tt_tensor + tt_tensor;
-    const tensorfact::TtTensor<float> tt_tensor_3 = tt_tensor_2.Round(1.0e-06f);
+    const tensorfact::TtTensor<double> tt_tensor_1 = 2.0 * tt_tensor;
+    const tensorfact::TtTensor<double> tt_tensor_2 = tt_tensor + tt_tensor;
+    const tensorfact::TtTensor<double> tt_tensor_3 = tt_tensor_2.Round(1.0e-15);
 
     ASSERT_TRUE((tt_tensor_2 - tt_tensor_3).Norm2() / tt_tensor_2.Norm2() <
-                5.0e-04f);
+                1.0e-05);
 
     const arma::uword &ndim = tt_tensor_1.NDim();
 
@@ -165,9 +155,9 @@ TEST(TtTensor, Round) {
 
 TEST(TtTensor, Addition) {
     tensorfact::TtTensor<float> tt_tensor1 =
-        5.0f * CreateTestTtTensor<float>({5, 3, 6, 4});
+        5.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
     tensorfact::TtTensor<float> tt_tensor2 =
-        -2.0f * CreateTestTtTensor<float>({5, 3, 6, 4});
+        -2.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
 
     tensorfact::TtTensor<float> tt_tensor = tt_tensor1 + tt_tensor2;
 
@@ -175,8 +165,8 @@ TEST(TtTensor, Addition) {
         for (arma::uword k = 0; k < 6; ++k) {
             for (arma::uword j = 0; j < 3; ++j) {
                 for (arma::uword i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(IsApproximatelyEqual<float>(
-                        tt_tensor({i, j, k, l}), 3.0f * (i + j + k + l)));
+                    ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
+                                         3.0f * (i + j + k + l)) < 1.0e-05f);
                 }
             }
         }
@@ -184,16 +174,16 @@ TEST(TtTensor, Addition) {
 }
 
 TEST(TtTensor, ScalarMultiplication) {
-    tensorfact::TtTensor<float> tt_tensor1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor2 = 2.0f * tt_tensor1;
+    tensorfact::TtTensor<double> tt_tensor1 =
+        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    tensorfact::TtTensor<double> tt_tensor2 = 2.0 * tt_tensor1;
 
     for (arma::uword l = 0; l < 4; ++l) {
         for (arma::uword k = 0; k < 6; ++k) {
             for (arma::uword j = 0; j < 3; ++j) {
                 for (arma::uword i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(IsApproximatelyEqual<float>(
-                        tt_tensor2({i, j, k, l}), 2.0f * (i + j + k + l)));
+                    ASSERT_TRUE(std::abs(tt_tensor2({i, j, k, l}) -
+                                         2.0 * (i + j + k + l)) < 1.0e-15);
                 }
             }
         }
@@ -202,25 +192,25 @@ TEST(TtTensor, ScalarMultiplication) {
 
 TEST(TtTensor, Concatenate) {
     const tensorfact::TtTensor<float> tt_tensor_1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
+        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
     const tensorfact::TtTensor<float> tt_tensor_2 =
-        CreateTestTtTensor<float>({5, 7, 6, 4});
+        SumOfIndicesTtTensor<float>({5, 7, 6, 4});
 
     const tensorfact::TtTensor<float> tt_tensor =
-        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-06f);
+        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-05f);
 
     for (arma::uword l = 0; l < 4; ++l) {
         for (arma::uword k = 0; k < 6; ++k) {
             for (arma::uword j = 0; j < 10; ++j) {
                 for (arma::uword i = 0; i < 5; ++i) {
                     if (j < 3) {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor({i, j, k, l}), tt_tensor_1({i, j, k, l}),
-                            1.0e-04f));
+                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
+                                             tt_tensor_1({i, j, k, l})) <
+                                    1.0e-04f);
                     } else {
-                        ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor({i, j, k, l}),
-                            tt_tensor_2({i, j - 3, k, l}), 1.0e-04f));
+                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
+                                             tt_tensor_2({i, j - 3, k, l})) <
+                                    1.0e-04f);
                     }
                 }
             }
@@ -229,31 +219,31 @@ TEST(TtTensor, Concatenate) {
 }
 
 TEST(TtTensor, DotProduct) {
-    tensorfact::TtTensor<float> tt_tensor1 =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor2 =
-        -2.0f * CreateTestTtTensor<float>({5, 3, 6, 4});
+    tensorfact::TtTensor<double> tt_tensor1 =
+        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    tensorfact::TtTensor<double> tt_tensor2 =
+        -2.0 * SumOfIndicesTtTensor<double>({5, 3, 6, 4});
 
-    float obtained_value = tt_tensor1.Dot(tt_tensor2);
+    double obtained_value = tt_tensor1.Dot(tt_tensor2);
 
-    float expected_value = 0.0f;
+    double expected_value = 0.0;
     for (arma::uword l = 0; l < 4; ++l) {
         for (arma::uword k = 0; k < 6; ++k) {
             for (arma::uword j = 0; j < 3; ++j) {
                 for (arma::uword i = 0; i < 5; ++i) {
-                    expected_value += std::pow(i + j + k + l, 2.0f);
+                    expected_value += std::pow(i + j + k + l, 2.0);
                 }
             }
         }
     }
-    expected_value *= -2.0f;
+    expected_value *= -2.0;
 
-    ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
+    ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
 }
 
 TEST(TtTensor, Norm) {
     tensorfact::TtTensor<float> tt_tensor =
-        CreateTestTtTensor<float>({5, 3, 6, 4});
+        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
 
     float obtained_value = tt_tensor.Norm2();
 
@@ -269,7 +259,7 @@ TEST(TtTensor, Norm) {
     }
     expected_value = std::sqrt(expected_value);
 
-    ASSERT_TRUE(IsApproximatelyEqual<float>(obtained_value, expected_value));
+    ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-05f);
 }
 
 int main(int argc, char **argv) {
