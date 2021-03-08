@@ -52,6 +52,12 @@ public:
     /// Compute and return the entry of the TT-tensor at given index
     Real operator()(const arma::Col<arma::uword> &index) const;
 
+    /// Write to file
+    void WriteToFile(const std::string &file_name) const;
+
+    /// Read from file
+    void ReadFromFile(const std::string &file_name);
+
     /// Addition
     TtTensor<Real> operator+(const TtTensor<Real> &other) const;
 

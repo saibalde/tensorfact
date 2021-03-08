@@ -1,6 +1,9 @@
 #include "tensorfact/tt_tensor.hpp"
 
+#include <fstream>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 #include <stdexcept>
 
 #include "svd.hpp"
@@ -112,6 +115,91 @@ Real tensorfact::TtTensor<Real>::operator()(
     }
 
     return temp(0, 0);
+}
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::WriteToFile(
+    const std::string &file_name) const {
+    std::ofstream file(file_name);
+
+    file << "TT Tensor" << std::endl;
+
+    file << ndim_ << std::endl;
+
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        file << size_(d) << std::endl;
+    }
+
+    for (arma::uword d = 0; d <= ndim_; ++d) {
+        file << rank_(d) << std::endl;
+    }
+
+    file << std::scientific;
+
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        for (arma::uword k = 0; k < rank_(d + 1); ++k) {
+            for (arma::uword j = 0; j < size_(d); ++j) {
+                for (arma::uword i = 0; i < rank_(d); ++i) {
+                    file << std::setprecision(17) << core_(d)(i, j, k)
+                         << std::endl;
+                }
+            }
+        }
+    }
+}
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
+    std::ifstream file(file_name);
+
+    {
+        std::string line;
+        std::getline(file, line);
+        if (line.compare("TT Tensor") != 0) {
+            throw std::runtime_error(
+                "tensorfact::TtTensor::ReadFromFile() - File does not seem to "
+                "contain a TT Tensor");
+        }
+    }
+
+    {
+        std::string line;
+        std::getline(file, line);
+        std::istringstream line_stream(line);
+        line_stream >> ndim_;
+    }
+
+    size_.set_size(ndim_);
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        std::string line;
+        std::getline(file, line);
+        std::istringstream line_stream(line);
+        line_stream >> size_(d);
+    }
+
+    rank_.set_size(ndim_ + 1);
+    for (arma::uword d = 0; d <= ndim_; ++d) {
+        std::string line;
+        std::getline(file, line);
+        std::istringstream line_stream(line);
+        line_stream >> rank_(d);
+    }
+
+    core_.set_size(ndim_);
+    for (arma::uword d = 0; d < ndim_; ++d) {
+        core_(d).set_size(rank_(d), size_(d), rank_(d + 1));
+
+        for (arma::uword k = 0; k < rank_(d + 1); ++k) {
+            for (arma::uword j = 0; j < size_(d); ++j) {
+                for (arma::uword i = 0; i < rank_(d); ++i) {
+                    std::string line;
+                    std::getline(file, line);
+                    std::istringstream line_stream(line);
+                    line_stream >> core_(d)(i, j, k);
+                }
+            }
+        }
+    }
 }
 
 template <typename Real>

@@ -65,6 +65,30 @@ TEST(TtTensor, ConstructFromCore) {
         arma::all(tt_tensor.Rank() == arma::Col<arma::uword>({1, 2, 2, 2, 1})));
 }
 
+TEST(TtTensor, FileIO) {
+    {
+        const tensorfact::TtTensor<double> tt_tensor =
+            CreateTestTtTensor<double>({5, 3, 6, 4});
+        tt_tensor.WriteToFile("tt_tensor.txt");
+    }
+
+    {
+        tensorfact::TtTensor<double> tt_tensor;
+        tt_tensor.ReadFromFile("tt_tensor.txt");
+
+        for (arma::uword l = 0; l < 4; ++l) {
+            for (arma::uword k = 0; k < 6; ++k) {
+                for (arma::uword j = 0; j < 3; ++j) {
+                    for (arma::uword i = 0; i < 5; ++i) {
+                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
+                                             (i + j + k + l)) < 1.0e-15);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(TtTensor, ConstructWithSvd) {
     arma::Col<arma::uword> size{3, 4, 5, 6};
     arma::uword numel = arma::prod(size);
@@ -221,8 +245,8 @@ TEST(TtTensor, Concatenate) {
                 for (arma::uword i = 0; i < 5; ++i) {
                     if (j < 3) {
                         ASSERT_TRUE(IsApproximatelyEqual<float>(
-                            tt_tensor({i, j, k, l}),
-                            tt_tensor_1({i, j, k, l}), 1.0e-04f));
+                            tt_tensor({i, j, k, l}), tt_tensor_1({i, j, k, l}),
+                            1.0e-04f));
                     } else {
                         ASSERT_TRUE(IsApproximatelyEqual<float>(
                             tt_tensor({i, j, k, l}),
