@@ -1,4 +1,5 @@
 add_library(tensorfact svd.cpp
+                       cp_tensor.cpp
                        tt_tensor.cpp)
 target_include_directories(tensorfact PUBLIC ${PROJECT_SOURCE_DIR}/include
                                              ${ARMADILLO_INCLUDE_DIRS})
