@@ -1,11 +1,11 @@
-#include "tensorfact/array.hpp"
+#include "TensorFact_Array.hpp"
 
 #include <cmath>
 
 #include "gtest/gtest.h"
 
 TEST(Array, ZeroDimensional) {
-    tensorfact::Array<float> array;
+    TensorFact::Array<float> array;
     array.Resize({});
 
     ASSERT_TRUE(array.NDim() == 0);
@@ -14,7 +14,7 @@ TEST(Array, ZeroDimensional) {
 }
 
 TEST(Array, OneDimensional) {
-    tensorfact::Array<double> array;
+    TensorFact::Array<double> array;
     array.Resize({5});
 
     ASSERT_TRUE(array.NDim() == 1);
@@ -35,7 +35,7 @@ TEST(Array, OneDimensional) {
 }
 
 TEST(Array, TwoDimensional) {
-    tensorfact::Array<float> array;
+    TensorFact::Array<float> array;
     array.Resize({4, 6});
 
     ASSERT_TRUE(array.NDim() == 2);
@@ -60,7 +60,7 @@ TEST(Array, TwoDimensional) {
 }
 
 TEST(Array, ThreeDimensional) {
-    tensorfact::Array<double> array;
+    TensorFact::Array<double> array;
     array.Resize({3, 7, 5});
 
     ASSERT_TRUE(array.NDim() == 3);
@@ -89,7 +89,7 @@ TEST(Array, ThreeDimensional) {
 }
 
 TEST(Array, Reshape) {
-    tensorfact::Array<float> array;
+    TensorFact::Array<float> array;
     array.Resize({3, 7, 5});
 
     for (std::size_t k = 0; k < 5; ++k) {
@@ -115,7 +115,7 @@ TEST(Array, Reshape) {
 }
 
 TEST(Array, MatrixVectorMultiply) {
-    tensorfact::Array<double> A;
+    TensorFact::Array<double> A;
     A.Resize({4, 5});
     for (std::size_t j = 0; j < 5; ++j) {
         for (std::size_t i = 0; i < 4; ++i) {
@@ -124,13 +124,13 @@ TEST(Array, MatrixVectorMultiply) {
     }
 
     {
-        tensorfact::Array<double> x;
+        TensorFact::Array<double> x;
         x.Resize({5});
         for (std::size_t j = 0; j < 5; ++j) {
             x({j}) = static_cast<double>(1);
         }
 
-        tensorfact::Array<double> b;
+        TensorFact::Array<double> b;
         b.Resize({4});
         for (std::size_t i = 0; i < 4; ++i) {
             b({i}) = static_cast<double>(0);
@@ -140,7 +140,7 @@ TEST(Array, MatrixVectorMultiply) {
         }
 
         {
-            tensorfact::Array<double> y;
+            TensorFact::Array<double> y;
             A.Multiply(false, x, false, y);
 
             for (std::size_t i = 0; i < 4; ++i) {
@@ -149,7 +149,7 @@ TEST(Array, MatrixVectorMultiply) {
         }
 
         {
-            tensorfact::Array<double> y;
+            TensorFact::Array<double> y;
             A.Multiply(false, x, true, y);
 
             for (std::size_t i = 0; i < 4; ++i) {
@@ -159,13 +159,13 @@ TEST(Array, MatrixVectorMultiply) {
     }
 
     {
-        tensorfact::Array<double> x;
+        TensorFact::Array<double> x;
         x.Resize({4});
         for (std::size_t i = 0; i < 4; ++i) {
             x({i}) = static_cast<double>(1);
         }
 
-        tensorfact::Array<double> b;
+        TensorFact::Array<double> b;
         b.Resize({5});
         for (std::size_t j = 0; j < 5; ++j) {
             b({j}) = static_cast<double>(0);
@@ -175,7 +175,7 @@ TEST(Array, MatrixVectorMultiply) {
         }
 
         {
-            tensorfact::Array<double> y;
+            TensorFact::Array<double> y;
             A.Multiply(true, x, false, y);
 
             for (std::size_t j = 0; j < 5; ++j) {
@@ -184,7 +184,7 @@ TEST(Array, MatrixVectorMultiply) {
         }
 
         {
-            tensorfact::Array<double> y;
+            TensorFact::Array<double> y;
             A.Multiply(true, x, true, y);
 
             for (std::size_t j = 0; j < 5; ++j) {
@@ -196,7 +196,7 @@ TEST(Array, MatrixVectorMultiply) {
 
 TEST(Array, MatrixMatrixMultiply) {
     {
-        tensorfact::Array<float> A;
+        TensorFact::Array<float> A;
         A.Resize({2, 3});
         A({0, 0}) = 0.5773502691896258;
         A({1, 0}) = 0.4082482904638631;
@@ -205,7 +205,7 @@ TEST(Array, MatrixMatrixMultiply) {
         A({0, 2}) = 0.5773502691896258;
         A({1, 2}) = 0.4082482904638631;
 
-        tensorfact::Array<float> B;
+        TensorFact::Array<float> B;
         B.Resize({3, 2});
         B({0, 0}) = 0.5773502691896258;
         B({1, 0}) = 0.5773502691896258;
@@ -215,7 +215,7 @@ TEST(Array, MatrixMatrixMultiply) {
         B({2, 1}) = 0.4082482904638631;
 
         {
-            tensorfact::Array<float> C;
+            TensorFact::Array<float> C;
             A.Multiply(false, B, false, C);
 
             ASSERT_TRUE(std::abs(C({0, 0}) - 1.0) < 1.0e-06);
@@ -225,7 +225,7 @@ TEST(Array, MatrixMatrixMultiply) {
         }
 
         {
-            tensorfact::Array<float> C;
+            TensorFact::Array<float> C;
             A.Multiply(true, B, true, C);
 
             ASSERT_TRUE(std::abs(C({0, 0}) - 0.5) < 1.0e-06);
@@ -241,7 +241,7 @@ TEST(Array, MatrixMatrixMultiply) {
     }
 
     {
-        tensorfact::Array<float> A;
+        TensorFact::Array<float> A;
         A.Resize({3, 2});
         A({0, 0}) = 0.5773502691896258;
         A({1, 0}) = 0.5773502691896258;
@@ -250,7 +250,7 @@ TEST(Array, MatrixMatrixMultiply) {
         A({1, 1}) = -0.8164965809277261;
         A({2, 1}) = 0.4082482904638631;
 
-        tensorfact::Array<float> B;
+        TensorFact::Array<float> B;
         B.Resize({3, 2});
         B({0, 0}) = 0.5773502691896258;
         B({1, 0}) = 0.5773502691896258;
@@ -260,7 +260,7 @@ TEST(Array, MatrixMatrixMultiply) {
         B({2, 1}) = 0.4082482904638631;
 
         {
-            tensorfact::Array<float> C;
+            TensorFact::Array<float> C;
             A.Multiply(true, B, false, C);
 
             ASSERT_TRUE(std::abs(C({0, 0}) - 1.0) < 1.0e-06);
@@ -270,7 +270,7 @@ TEST(Array, MatrixMatrixMultiply) {
         }
 
         {
-            tensorfact::Array<float> C;
+            TensorFact::Array<float> C;
             A.Multiply(false, B, true, C);
 
             ASSERT_TRUE(std::abs(C({0, 0}) - 0.5) < 1.0e-06);
@@ -287,7 +287,7 @@ TEST(Array, MatrixMatrixMultiply) {
 }
 
 TEST(Array, TruncatedSvd) {
-    tensorfact::Array<double> A;
+    TensorFact::Array<double> A;
     A.Resize({4, 3});
     A({0, 0}) = 0.8730758679812514;
     A({1, 0}) = 0.8905818857769324;
@@ -302,7 +302,7 @@ TEST(Array, TruncatedSvd) {
     A({2, 2}) = 1.1665137875687934;
     A({3, 2}) = 1.023738282971006;
 
-    tensorfact::Array<double> U_true;
+    TensorFact::Array<double> U_true;
     U_true.Resize({4, 3});
     U_true({0, 0}) = -0.4374561669866752;
     U_true({1, 0}) = -0.4552544328197976;
@@ -317,13 +317,13 @@ TEST(Array, TruncatedSvd) {
     U_true({2, 2}) = -0.4619084065205092;
     U_true({3, 2}) = 0.7914926091564425;
 
-    tensorfact::Array<double> s_true;
+    TensorFact::Array<double> s_true;
     s_true.Resize({3});
     s_true({0}) = 3.2265338169944235;
     s_true({1}) = 0.5355825867628933;
     s_true({2}) = 0.07847516615102999;
 
-    tensorfact::Array<double> V_true;
+    TensorFact::Array<double> V_true;
     V_true.Resize({3, 3});
     V_true({0, 0}) = -0.6215564555795905;
     V_true({1, 0}) = -0.5764091990342418;
@@ -336,7 +336,7 @@ TEST(Array, TruncatedSvd) {
     V_true({2, 2}) = -0.4145071791548137;
 
     {
-        tensorfact::Array<double> U, s, Vt;
+        TensorFact::Array<double> U, s, Vt;
         A.TruncatedSvd(U, s, Vt, 0.0, false);
 
         ASSERT_TRUE(s.NumberOfElements() == 3);
@@ -370,7 +370,7 @@ TEST(Array, TruncatedSvd) {
     }
 
     {
-        tensorfact::Array<double> U, s, Vt;
+        TensorFact::Array<double> U, s, Vt;
         A.TruncatedSvd(U, s, Vt, 1.0e-01, false);
 
         const std::size_t rank = s.NumberOfElements();
@@ -406,7 +406,7 @@ TEST(Array, TruncatedSvd) {
     }
 
     {
-        tensorfact::Array<double> U, s, Vt;
+        TensorFact::Array<double> U, s, Vt;
         A.TruncatedSvd(U, s, Vt, 1.0e-04, true);
 
         const std::size_t rank = s.NumberOfElements();

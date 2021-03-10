@@ -1,4 +1,4 @@
-#include "tensorfact/array.hpp"
+#include "TensorFact_Array.hpp"
 
 #include <limits>
 #include <stdexcept>
@@ -7,7 +7,7 @@
 #include "lapack.hh"
 
 template <typename Scalar>
-const Scalar &tensorfact::Array<Scalar>::operator()(
+const Scalar &TensorFact::Array<Scalar>::operator()(
     const std::vector<std::size_t> &cartesian_index) const {
     std::size_t linear_index;
     CartesianToLinearIndex(cartesian_index, linear_index);
@@ -15,7 +15,7 @@ const Scalar &tensorfact::Array<Scalar>::operator()(
 }
 
 template <typename Scalar>
-Scalar &tensorfact::Array<Scalar>::operator()(
+Scalar &TensorFact::Array<Scalar>::operator()(
     const std::vector<std::size_t> &cartesian_index) {
     std::size_t linear_index;
     CartesianToLinearIndex(cartesian_index, linear_index);
@@ -23,7 +23,7 @@ Scalar &tensorfact::Array<Scalar>::operator()(
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::Reshape(
+void TensorFact::Array<Scalar>::Reshape(
     const std::vector<std::size_t> &size_new) {
     const std::size_t ndim_new = size_new.size();
 
@@ -44,7 +44,7 @@ void tensorfact::Array<Scalar>::Reshape(
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::Resize(const std::vector<std::size_t> &size) {
+void TensorFact::Array<Scalar>::Resize(const std::vector<std::size_t> &size) {
     ndim_ = size.size();
 
     size_ = size;
@@ -63,14 +63,14 @@ void tensorfact::Array<Scalar>::Resize(const std::vector<std::size_t> &size) {
 }
 
 template <typename Scalar>
-Scalar tensorfact::Array<Scalar>::FrobeniusNorm() const {
+Scalar TensorFact::Array<Scalar>::FrobeniusNorm() const {
     return blas::nrm2(unfolding_factors_[ndim_], entries_.data(), 1);
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::Multiply(
-    bool conjugate, const tensorfact::Array<Scalar> &other,
-    bool other_conjugate, tensorfact::Array<Scalar> &result) const {
+void TensorFact::Array<Scalar>::Multiply(
+    bool conjugate, const TensorFact::Array<Scalar> &other,
+    bool other_conjugate, TensorFact::Array<Scalar> &result) const {
     if (ndim_ == 2 && other.ndim_ == 1) {
         if (!conjugate) {
             if (size_[1] != other.size_[0]) {
@@ -161,18 +161,18 @@ void tensorfact::Array<Scalar>::Multiply(
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::TruncatedSvd(tensorfact::Array<Scalar> &U,
-                                             tensorfact::Array<Scalar> &s,
-                                             tensorfact::Array<Scalar> &Vt,
+void TensorFact::Array<Scalar>::TruncatedSvd(TensorFact::Array<Scalar> &U,
+                                             TensorFact::Array<Scalar> &s,
+                                             TensorFact::Array<Scalar> &Vt,
                                              Scalar tolerance,
                                              bool relative_flag) const {
     if (ndim_ != 2) {
         throw std::invalid_argument("Only matrix SVD is implemented");
     }
 
-    tensorfact::Array<Scalar> U_thin;
-    tensorfact::Array<Scalar> s_thin;
-    tensorfact::Array<Scalar> Vt_thin;
+    TensorFact::Array<Scalar> U_thin;
+    TensorFact::Array<Scalar> s_thin;
+    TensorFact::Array<Scalar> Vt_thin;
 
     const std::size_t k = std::min(size_[0], size_[1]);
 
@@ -233,7 +233,7 @@ void tensorfact::Array<Scalar>::TruncatedSvd(tensorfact::Array<Scalar> &U,
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::CartesianToLinearIndex(
+void TensorFact::Array<Scalar>::CartesianToLinearIndex(
     const std::vector<std::size_t> &cartesian_index,
     std::size_t &linear_index) const {
     linear_index = 0;
@@ -243,7 +243,7 @@ void tensorfact::Array<Scalar>::CartesianToLinearIndex(
 }
 
 template <typename Scalar>
-void tensorfact::Array<Scalar>::LinearToCartesianIndex(
+void TensorFact::Array<Scalar>::LinearToCartesianIndex(
     std::size_t linear_index, std::vector<std::size_t> &cartesian_index) const {
     cartesian_index.resize(ndim_);
     for (std::size_t d = 0; d < ndim_; ++d) {
@@ -254,5 +254,5 @@ void tensorfact::Array<Scalar>::LinearToCartesianIndex(
 
 // explicit instantiations -----------------------------------------------------
 
-template class tensorfact::Array<float>;
-template class tensorfact::Array<double>;
+template class TensorFact::Array<float>;
+template class TensorFact::Array<double>;

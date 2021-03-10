@@ -1,11 +1,11 @@
-/// @file array.hpp
+/// @file TensorFact_Array.hpp
 
 #ifndef TENSORFACT_ARRAY_HPP
 #define TENSORFACT_ARRAY_HPP
 
 #include <vector>
 
-namespace tensorfact {
+namespace TensorFact {
 
 /// @brief Wrapper around std::vector to support multidimensional arrays
 template <typename Scalar>
@@ -108,6 +108,6 @@ private:
     std::vector<Scalar> entries_;
 };
 
-}  // namespace tensorfact
+}  // namespace TensorFact
 
 #endif
