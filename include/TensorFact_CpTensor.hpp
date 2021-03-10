@@ -1,12 +1,14 @@
-/// @file cp_tensor.hpp
+/// @file TensorFact_CpTensor.hpp
 
 #ifndef TENSORFACT_CPTENSOR_HPP
 #define TENSORFACT_CPTENSOR_HPP
 
-#include <armadillo>
 #include <string>
+#include <vector>
 
-namespace tensorfact {
+#include "TensorFact_Array.hpp"
+
+namespace TensorFact {
 
 /// @brief CP representation of a multidimensional tensor
 ///
@@ -19,34 +21,36 @@ namespace tensorfact {
 /// Assuming \f$n_k \sim n\f$, this reduces the storage complexity
 /// \f$\mathcal{O}(n^d)\f$ of the full tensor to \f$\mathcal{O}(d n r)\f$ in the
 /// CP format.
-template <typename Real>
+template <typename Scalar>
 class CpTensor {
 public:
     /// Default constructor
     CpTensor() = default;
 
     /// Construct a CP tensor from its factors
-    CpTensor(const arma::field<arma::Mat<Real>> &factor);
+    CpTensor(const std::vector<Array<Scalar>> &factor);
 
     /// Default destructor
     ~CpTensor() = default;
 
     /// Compute and return entry of CP tensor at specified index
-    Real operator()(const arma::Col<arma::uword> &index) const;
+    Scalar operator()(const std::vector<std::size_t> &index) const;
 
     /// Write to file
     void WriteToFile(const std::string &file_name) const;
 
     /// Read from file
+    ///
+    /// @warning Destroys any exisitng data
     void ReadFromFile(const std::string &file_name);
 
 private:
-    arma::uword ndim_;
-    arma::Col<arma::uword> size_;
-    arma::uword rank_;
-    arma::field<arma::Mat<Real>> factor_;
+    std::size_t ndim_;
+    std::vector<std::size_t> size_;
+    std::size_t rank_;
+    std::vector<Array<Scalar>> factor_;
 };
 
-}  // namespace tensorfact
+}  // namespace TensorFact
 
 #endif

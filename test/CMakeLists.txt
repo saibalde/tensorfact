@@ -7,3 +7,4 @@ macro(TensorFact_add_test TESTNAME)
 endmacro()
 
 TensorFact_add_test(tensorfact_array_test TensorFact_Array_Test.cpp)
+TensorFact_add_test(tensorfact_cptensor_test TensorFact_CpTensor_Test.cpp)
