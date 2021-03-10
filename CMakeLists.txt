@@ -1,15 +1,13 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(TensorFact LANGUAGES CXX VERSION 0.1.0)
 
-set(CMAKE_PREFIX_PATH ${BLAS_PREFIX_PATH}
-                      ${LAPACK_PREFIX_PATH}
-                      ${ARMADILLO_PREFIX_PATH}
+set(CMAKE_PREFIX_PATH ${BLASPP_PREFIX_PATH}
+                      ${LAPACKPP_PREFIX_PATH}
                       ${GTEST_PREFIX_PATH}
                       ${CMAKE_PREFIX_PATH})
 
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
-find_package(Armadillo REQUIRED)
+find_package(blaspp REQUIRED)
+find_package(lapackpp REQUIRED)
 find_package(GTest)
 find_package(Doxygen)
 
