@@ -375,7 +375,7 @@ TEST(Array, TruncatedSvd) {
 
         const std::size_t rank = s.NumberOfElements();
 
-        ASSERT_TRUE(rank == 1);
+        ASSERT_TRUE(rank == 2);
 
         for (std::size_t r = 0; r < rank; ++r) {
             if (U({0, r}) * U_true({0, r}) < 0.0) {
@@ -407,11 +407,11 @@ TEST(Array, TruncatedSvd) {
 
     {
         TensorFact::Array<double> U, s, Vt;
-        A.TruncatedSvd(U, s, Vt, 1.0e-04, true);
+        A.TruncatedSvd(U, s, Vt, 2.0e-01, true);
 
         const std::size_t rank = s.NumberOfElements();
 
-        ASSERT_TRUE(rank == 2);
+        ASSERT_TRUE(rank == 1);
 
         for (std::size_t r = 0; r < rank; ++r) {
             if (U({0, r}) * U_true({0, r}) < 0.0) {

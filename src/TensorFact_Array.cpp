@@ -206,8 +206,11 @@ void TensorFact::Array<Scalar>::TruncatedSvd(TensorFact::Array<Scalar> &U,
         }
 
         Scalar frobenius_error = static_cast<Scalar>(0);
-        while ((rank > 0) && (frobenius_error <= max_frobenius_error)) {
+        while (rank > 0) {
             frobenius_error += std::pow(s_thin({rank - 1}), 2);
+            if (frobenius_error > max_frobenius_error) {
+                break;
+            }
             --rank;
         }
     }
