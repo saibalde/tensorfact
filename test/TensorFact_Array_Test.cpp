@@ -1,6 +1,7 @@
 #include "TensorFact_Array.hpp"
 
 #include <cmath>
+#include <random>
 
 #include "gtest/gtest.h"
 
@@ -283,6 +284,61 @@ TEST(Array, MatrixMatrixMultiply) {
             ASSERT_TRUE(std::abs(C({1, 2}) - 0.0) < 1.0e-06);
             ASSERT_TRUE(std::abs(C({2, 2}) - 0.5) < 1.0e-06);
         }
+    }
+}
+
+TEST(Array, ReducedRq) {
+    std::random_device device;
+    std::mt19937 generator(device());
+    std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+
+    TensorFact::Array<double> A;
+    A.Resize({3, 4});
+    for (std::size_t j = 0; j < 4; ++j) {
+        for (std::size_t i = 0; i < 3; ++i) {
+            A({i, j}) = distribution(generator);
+        }
+    }
+
+    TensorFact::Array<double> R;
+    TensorFact::Array<double> Q;
+    A.ReducedRq(R, Q);
+
+    ASSERT_EQ(R.NDim(), 2);
+    ASSERT_EQ(R.Size(0), 3);
+    ASSERT_EQ(R.Size(1), 3);
+
+    ASSERT_EQ(Q.NDim(), 2);
+    ASSERT_EQ(Q.Size(0), 3);
+    ASSERT_EQ(Q.Size(1), 4);
+
+    TensorFact::Array<double> B;
+    R.Multiply(false, Q, false, B);
+
+    ASSERT_TRUE((A - B).FrobeniusNorm() < 1.0e-15);
+
+    for (std::size_t j = 0; j < 3; ++j) {
+        for (std::size_t i = j + 1;i < 3; ++i) {
+            ASSERT_TRUE(std::abs(R({i, j})) < 1.0e-15);
+        }
+    }
+
+    for (std::size_t j = 0; j < 3; ++j) {
+        for (std::size_t i = 0; i < j; ++i) {
+            double dot_product = 0.0;
+            for (std::size_t k = 0; k < 4; ++k) {
+                dot_product += Q({i, k}) * Q({j, k});
+            }
+
+            ASSERT_TRUE(std::abs(dot_product) < 1.0e-15);
+        }
+
+        double norm_squared = 0.0;
+        for (std::size_t k = 0; k < 4; ++k) {
+            norm_squared += std::pow(Q({j, k}), 2.0);
+        }
+
+        ASSERT_TRUE(std::abs(norm_squared - 1.0) < 1.0e-15);
     }
 }
 

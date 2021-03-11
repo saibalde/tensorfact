@@ -23,6 +23,29 @@ Scalar &TensorFact::Array<Scalar>::operator()(
 }
 
 template <typename Scalar>
+TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator-(
+    const TensorFact::Array<Scalar> &other) const {
+    if (ndim_ != other.ndim_) {
+        throw std::invalid_argument(
+            "Dimensionalties of the two arrays must match");
+    }
+
+    for (std::size_t d = 0; d < ndim_; ++d) {
+        if (size_[d] != other.size_[d]) {
+            throw std::invalid_argument("Sizes of the two arrays must match");
+        }
+    }
+
+    TensorFact::Array<Scalar> difference;
+    difference.Resize(size_);
+    for (std::size_t n = 0; n < unfolding_factors_[ndim_]; ++n) {
+        difference.entries_[n] = entries_[n] - other.entries_[n];
+    }
+
+    return difference;
+}
+
+template <typename Scalar>
 void TensorFact::Array<Scalar>::Reshape(
     const std::vector<std::size_t> &size_new) {
     const std::size_t ndim_new = size_new.size();
@@ -157,6 +180,59 @@ void TensorFact::Array<Scalar>::Multiply(
     } else {
         throw std::invalid_argument(
             "Only matrix-matrix and matrix-vector products are implemented");
+    }
+}
+template <typename Scalar>
+void TensorFact::Array<Scalar>::ReducedRq(TensorFact::Array<Scalar> &R,
+                                          TensorFact::Array<Scalar> &Q) const {
+    if (ndim_ != 2) {
+        throw std::invalid_argument("Only matrix RQ is implemented");
+    }
+
+    const std::size_t m = size_[0];
+    const std::size_t n = size_[1];
+    const std::size_t k = std::min(size_[0], size_[1]);
+
+    TensorFact::Array<Scalar> temp = *this;
+    std::vector<Scalar> tau(k);
+
+    const std::size_t status =
+        lapack::gerqf(m, n, temp.entries_.data(), m, tau.data());
+    if (status != 0) {
+        throw std::runtime_error("RQ factorization was not successful");
+    }
+
+    R.Resize({k, k});
+    for (std::size_t j = 0; j < k; ++j) {
+        for (std::size_t i = 0; i < k; ++i) {
+            if (i <= j) {
+                if (m < n) {
+                    R({i, j}) = temp({i, n - m + j});
+                } else {
+                    R({i, j}) = temp({m - n + i, j});
+                }
+            } else {
+                R({i, j}) = static_cast<Scalar>(0);
+            }
+        }
+    }
+
+    Q.Resize({k, n});
+    for (std::size_t j = 0; j < k; ++j) {
+        for (std::size_t i = 0; i < n; ++i) {
+            if (m < n) {
+                Q({i, j}) = temp({i, j});
+            } else {
+                Q({i, j}) = temp({m - k + i, j});
+            }
+        }
+    }
+
+    const std::size_t status2 =
+        lapack::ungrq(k, n, k, Q.entries_.data(), k, tau.data());
+    if (status2 != 0) {
+        throw std::runtime_error(
+            "Q computation in RQ factorization was not successful");
     }
 }
 

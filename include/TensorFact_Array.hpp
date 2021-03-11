@@ -46,6 +46,9 @@ public:
         return entries_[linear_index];
     }
 
+    /// Subtraction
+    Array<Scalar> operator-(const Array<Scalar> &other) const;
+
     /// Reshape
     void Reshape(const std::vector<std::size_t> &size);
 
@@ -75,6 +78,15 @@ public:
     /// - `C = A^H * B^H` if `conjugate_A == true` and `conjugate_B == true`
     void Multiply(bool conjugate, const Array<Scalar> &other,
                   bool other_conjugate, Array<Scalar> &result) const;
+
+    /// RQ orthogonalization
+    ///
+    /// For array `A` with `A.Size(0) == m` and `A.Size(1) == n`,
+    /// `A.ReducedRq(R, Q)` computes the RQ factorization satisfying `A == R *
+    /// Q`.
+    ///
+    /// @note Only implemented for matrices
+    void ReducedRq(Array<Scalar> &R, Array<Scalar> &Q) const;
 
     /// Truncated singular value decomposition
     ///
