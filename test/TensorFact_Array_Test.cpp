@@ -318,7 +318,7 @@ TEST(Array, ReducedRq) {
     ASSERT_TRUE((A - B).FrobeniusNorm() < 1.0e-15);
 
     for (std::size_t j = 0; j < 3; ++j) {
-        for (std::size_t i = j + 1;i < 3; ++i) {
+        for (std::size_t i = j + 1; i < 3; ++i) {
             ASSERT_TRUE(std::abs(R({i, j})) < 1.0e-15);
         }
     }

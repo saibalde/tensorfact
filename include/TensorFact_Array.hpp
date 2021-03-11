@@ -46,8 +46,17 @@ public:
         return entries_[linear_index];
     }
 
+    /// Addition
+    Array<Scalar> operator+(const Array<Scalar> &other) const;
+
+    /// Scalar multiplication
+    Array<Scalar> operator*(Scalar alpha) const;
+
     /// Subtraction
     Array<Scalar> operator-(const Array<Scalar> &other) const;
+
+    /// Scalar division
+    Array<Scalar> operator/(const Scalar alpha) const;
 
     /// Reshape
     void Reshape(const std::vector<std::size_t> &size);
@@ -121,5 +130,12 @@ private:
 };
 
 }  // namespace TensorFact
+
+/// Scalar multiplication
+template <typename Scalar>
+inline TensorFact::Array<Scalar> operator*(
+    Scalar alpha, const TensorFact::Array<Scalar> &array) {
+    return array * alpha;
+}
 
 #endif

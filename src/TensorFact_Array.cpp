@@ -23,7 +23,7 @@ Scalar &TensorFact::Array<Scalar>::operator()(
 }
 
 template <typename Scalar>
-TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator-(
+TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator+(
     const TensorFact::Array<Scalar> &other) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
@@ -36,13 +36,41 @@ TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator-(
         }
     }
 
-    TensorFact::Array<Scalar> difference;
-    difference.Resize(size_);
+    TensorFact::Array<Scalar> sum;
+    sum.Resize(size_);
     for (std::size_t n = 0; n < unfolding_factors_[ndim_]; ++n) {
-        difference.entries_[n] = entries_[n] - other.entries_[n];
+        sum.entries_[n] = entries_[n] + other.entries_[n];
     }
 
-    return difference;
+    return sum;
+}
+
+template <typename Scalar>
+TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator*(
+    Scalar alpha) const {
+    TensorFact::Array<Scalar> product;
+    product.Resize(size_);
+    for (std::size_t n = 0; n < unfolding_factors_[ndim_]; ++n) {
+        product.entries_[n] = entries_[n] * alpha;
+    }
+
+    return product;
+}
+
+template <typename Scalar>
+TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator-(
+    const TensorFact::Array<Scalar> &other) const {
+    return *this + other * (-static_cast<Scalar>(1));
+}
+
+template <typename Scalar>
+TensorFact::Array<Scalar> TensorFact::Array<Scalar>::operator/(
+    Scalar alpha) const {
+    if (std::abs(alpha) < std::numeric_limits<Scalar>::epsilon()) {
+        throw std::logic_error("Dividing by a very small number");
+    }
+
+    return *this * (static_cast<Scalar>(1) / alpha);
 }
 
 template <typename Scalar>
