@@ -1,4 +1,4 @@
-#include "Tensorfact_TtTensor.hpp"
+#include "TensorFact_TtTensor.hpp"
 
 #include <fstream>
 #include <iomanip>
