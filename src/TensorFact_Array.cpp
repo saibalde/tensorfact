@@ -296,27 +296,27 @@ void TensorFact::Array<Scalar>::TruncatedSvd(TensorFact::Array<Scalar> &U,
 
     std::size_t rank = k;
     if (tolerance <= std::numeric_limits<Scalar>::epsilon()) {
-        while ((rank > 0) &&
-               (s_thin(rank - 1) <= std::numeric_limits<Scalar>::epsilon())) {
-            --rank;
-        }
-    } else {
-        Scalar max_frobenius_error;
-        if (!relative_flag) {
-            max_frobenius_error = std::pow(tolerance, 2);
-        } else {
-            max_frobenius_error =
-                std::pow(tolerance * s_thin.FrobeniusNorm(), 2);
-        }
+        U = U_thin;
+        s = s_thin;
+        Vt = Vt_thin;
 
-        Scalar frobenius_error = static_cast<Scalar>(0);
-        while (rank > 0) {
-            frobenius_error += std::pow(s_thin({rank - 1}), 2);
-            if (frobenius_error > max_frobenius_error) {
-                break;
-            }
-            --rank;
+        return;
+    }
+
+    Scalar max_frobenius_error;
+    if (!relative_flag) {
+        max_frobenius_error = std::pow(tolerance, 2);
+    } else {
+        max_frobenius_error = std::pow(tolerance * s_thin.FrobeniusNorm(), 2);
+    }
+
+    Scalar frobenius_error = static_cast<Scalar>(0);
+    while (rank > 0) {
+        frobenius_error += std::pow(s_thin({rank - 1}), 2);
+        if (frobenius_error > max_frobenius_error) {
+            break;
         }
+        --rank;
     }
 
     U.Resize({size_[0], rank});

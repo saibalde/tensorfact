@@ -109,7 +109,7 @@ public:
     ///
     /// @note Only implemented for matrices
     ///
-    /// @note For `tol <= machine_precision` this computes the compact SVD
+    /// @note For `tol <= machine_precision` this computes the thin SVD
     void TruncatedSvd(Array<Scalar> &U, Array<Scalar> &s, Array<Scalar> &Vt,
                       Scalar tolernace, bool relative_flag) const;
 
