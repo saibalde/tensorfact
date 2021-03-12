@@ -230,14 +230,14 @@ void TensorFact::Array<Scalar>::ReducedRq(TensorFact::Array<Scalar> &R,
         throw std::runtime_error("RQ factorization was not successful");
     }
 
-    R.Resize({k, k});
+    R.Resize({m, k});
     for (std::size_t j = 0; j < k; ++j) {
-        for (std::size_t i = 0; i < k; ++i) {
-            if (i <= j) {
+        for (std::size_t i = 0; i < m; ++i) {
+            if (i <= j + m - k) {
                 if (m < n) {
                     R({i, j}) = temp({i, n - m + j});
                 } else {
-                    R({i, j}) = temp({m - n + i, j});
+                    R({i, j}) = temp({i, j});
                 }
             } else {
                 R({i, j}) = static_cast<Scalar>(0);
@@ -246,8 +246,8 @@ void TensorFact::Array<Scalar>::ReducedRq(TensorFact::Array<Scalar> &R,
     }
 
     Q.Resize({k, n});
-    for (std::size_t j = 0; j < k; ++j) {
-        for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+        for (std::size_t i = 0; i < k; ++i) {
             if (m < n) {
                 Q({i, j}) = temp({i, j});
             } else {
