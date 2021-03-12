@@ -1,17 +1,30 @@
 #include "TensorFact_Array.hpp"
 
 #include <cmath>
+#include <limits>
 #include <random>
+#include <stdexcept>
+#include <vector>
 
 #include "gtest/gtest.h"
 
-TEST(Array, ZeroDimensional) {
-    TensorFact::Array<float> array;
-    array.Resize({});
+template <typename Scalar>
+TensorFact::Array<Scalar> CreateRandomArray(
+    const std::vector<std::size_t> &size) {
+    std::random_device device;
+    std::mt19937 generator(device());
+    std::uniform_real_distribution<Scalar> distribution(-1.0, 1.0);
 
-    ASSERT_TRUE(array.NDim() == 0);
+    TensorFact::Array<Scalar> A;
+    A.Resize(size);
 
-    ASSERT_TRUE(array.NumberOfElements() == 0);
+    const std::size_t num_element = A.NumberOfElements();
+
+    for (std::size_t n = 0; n < num_element; ++n) {
+        A(n) = distribution(generator);
+    }
+
+    return A;
 }
 
 TEST(Array, OneDimensional) {
@@ -115,387 +128,602 @@ TEST(Array, Reshape) {
     }
 }
 
+template <typename Scalar>
+void MatrixVectorMultiplyTest(std::size_t m, std::size_t n, bool conjugate) {
+    const TensorFact::Array<Scalar> A = CreateRandomArray<Scalar>({m, n});
+    TensorFact::Array<Scalar> x;
+    TensorFact::Array<Scalar> b_expected;
+
+    if (!conjugate) {
+        x = CreateRandomArray<Scalar>({n});
+
+        b_expected.Resize({m});
+        for (std::size_t i = 0; i < m; ++i) {
+            b_expected({i}) = static_cast<Scalar>(0);
+        }
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < m; ++i) {
+                b_expected({i}) += A({i, j}) * x({j});
+            }
+        }
+    } else {
+        x = CreateRandomArray<Scalar>({m});
+
+        b_expected.Resize({n});
+        for (std::size_t j = 0; j < n; ++j) {
+            b_expected({j}) = static_cast<Scalar>(0);
+        }
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < m; ++i) {
+                b_expected({j}) += A({i, j}) * x({i});
+            }
+        }
+    }
+
+    TensorFact::Array<Scalar> b1;
+    A.Multiply(conjugate, x, false, b1);
+    ASSERT_TRUE((b_expected - b1).FrobeniusNorm() <
+                100 * std::numeric_limits<Scalar>::epsilon());
+
+    TensorFact::Array<Scalar> b2;
+    A.Multiply(conjugate, x, true, b2);
+    ASSERT_TRUE((b_expected - b2).FrobeniusNorm() <
+                100 * std::numeric_limits<Scalar>::epsilon());
+}
+
 TEST(Array, MatrixVectorMultiply) {
-    TensorFact::Array<double> A;
-    A.Resize({4, 5});
-    for (std::size_t j = 0; j < 5; ++j) {
-        for (std::size_t i = 0; i < 4; ++i) {
-            A({i, j}) = static_cast<double>(i + j);
+    MatrixVectorMultiplyTest<double>(64, 4, true);
+    MatrixVectorMultiplyTest<double>(64, 4, false);
+
+    MatrixVectorMultiplyTest<float>(64, 4, true);
+    MatrixVectorMultiplyTest<float>(64, 4, false);
+
+    MatrixVectorMultiplyTest<double>(4, 64, true);
+    MatrixVectorMultiplyTest<double>(4, 64, false);
+
+    MatrixVectorMultiplyTest<float>(4, 64, true);
+    MatrixVectorMultiplyTest<float>(4, 64, false);
+}
+
+template <typename Scalar>
+void MatrixMatrixMultiplyTest(std::size_t p, std::size_t q, std::size_t r,
+                              bool conjugate_A, bool conjugate_B) {
+    TensorFact::Array<Scalar> A = CreateRandomArray<Scalar>({p, q});
+    TensorFact::Array<Scalar> B;
+    TensorFact::Array<Scalar> C_expected;
+
+    if (!conjugate_A && !conjugate_B) {
+        B = CreateRandomArray<Scalar>({q, r});
+
+        C_expected.Resize({p, r});
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t i = 0; i < p; ++i) {
+                C_expected({i, k}) = static_cast<Scalar>(0);
+            }
+        }
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                for (std::size_t i = 0; i < p; ++i) {
+                    C_expected({i, k}) += A({i, j}) * B({j, k});
+                }
+            }
+        }
+    } else if (!conjugate_A && conjugate_B) {
+        B = CreateRandomArray<Scalar>({r, q});
+
+        C_expected.Resize({p, r});
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t i = 0; i < p; ++i) {
+                C_expected({i, k}) = static_cast<Scalar>(0);
+            }
+        }
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                for (std::size_t i = 0; i < p; ++i) {
+                    C_expected({i, k}) += A({i, j}) * B({k, j});
+                }
+            }
+        }
+    } else if (conjugate_A && !conjugate_B) {
+        B = CreateRandomArray<Scalar>({p, r});
+
+        C_expected.Resize({q, r});
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                C_expected({j, k}) = static_cast<Scalar>(0);
+            }
+        }
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                for (std::size_t i = 0; i < p; ++i) {
+                    C_expected({j, k}) += A({i, j}) * B({i, k});
+                }
+            }
+        }
+    } else {
+        B = CreateRandomArray<Scalar>({r, p});
+
+        C_expected.Resize({q, r});
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                C_expected({j, k}) = static_cast<Scalar>(0);
+            }
+        }
+        for (std::size_t k = 0; k < r; ++k) {
+            for (std::size_t j = 0; j < q; ++j) {
+                for (std::size_t i = 0; i < p; ++i) {
+                    C_expected({j, k}) += A({i, j}) * B({k, i});
+                }
+            }
         }
     }
 
-    {
-        TensorFact::Array<double> x;
-        x.Resize({5});
-        for (std::size_t j = 0; j < 5; ++j) {
-            x({j}) = static_cast<double>(1);
-        }
+    TensorFact::Array<Scalar> C;
+    A.Multiply(conjugate_A, B, conjugate_B, C);
 
-        TensorFact::Array<double> b;
-        b.Resize({4});
-        for (std::size_t i = 0; i < 4; ++i) {
-            b({i}) = static_cast<double>(0);
-            for (std::size_t j = 0; j < 5; ++j) {
-                b({i}) += static_cast<double>(i + j);
-            }
-        }
-
-        {
-            TensorFact::Array<double> y;
-            A.Multiply(false, x, false, y);
-
-            for (std::size_t i = 0; i < 4; ++i) {
-                ASSERT_TRUE(std::abs(y({i}) - b({i})) < 1.0e-15);
-            }
-        }
-
-        {
-            TensorFact::Array<double> y;
-            A.Multiply(false, x, true, y);
-
-            for (std::size_t i = 0; i < 4; ++i) {
-                ASSERT_TRUE(std::abs(y({i}) - b({i})) < 1.0e-15);
-            }
-        }
-    }
-
-    {
-        TensorFact::Array<double> x;
-        x.Resize({4});
-        for (std::size_t i = 0; i < 4; ++i) {
-            x({i}) = static_cast<double>(1);
-        }
-
-        TensorFact::Array<double> b;
-        b.Resize({5});
-        for (std::size_t j = 0; j < 5; ++j) {
-            b({j}) = static_cast<double>(0);
-            for (std::size_t i = 0; i < 4; ++i) {
-                b({j}) += static_cast<double>(i + j);
-            }
-        }
-
-        {
-            TensorFact::Array<double> y;
-            A.Multiply(true, x, false, y);
-
-            for (std::size_t j = 0; j < 5; ++j) {
-                ASSERT_TRUE(std::abs(y({j}) - b({j})) < 1.0e-15);
-            }
-        }
-
-        {
-            TensorFact::Array<double> y;
-            A.Multiply(true, x, true, y);
-
-            for (std::size_t j = 0; j < 5; ++j) {
-                ASSERT_TRUE(std::abs(y({j}) - b({j})) < 1.0e-15);
-            }
-        }
-    }
+    ASSERT_TRUE((C_expected - C).FrobeniusNorm() <
+                100 * std::numeric_limits<Scalar>::epsilon());
 }
 
 TEST(Array, MatrixMatrixMultiply) {
     {
-        TensorFact::Array<float> A;
-        A.Resize({2, 3});
-        A({0, 0}) = 0.5773502691896258;
-        A({1, 0}) = 0.4082482904638631;
-        A({0, 1}) = 0.5773502691896258;
-        A({1, 1}) = -0.8164965809277261;
-        A({0, 2}) = 0.5773502691896258;
-        A({1, 2}) = 0.4082482904638631;
+        const std::size_t p = 32;
+        const std::size_t q = 16;
+        const std::size_t r = 8;
 
-        TensorFact::Array<float> B;
-        B.Resize({3, 2});
-        B({0, 0}) = 0.5773502691896258;
-        B({1, 0}) = 0.5773502691896258;
-        B({2, 0}) = 0.5773502691896258;
-        B({0, 1}) = 0.4082482904638631;
-        B({1, 1}) = -0.8164965809277261;
-        B({2, 1}) = 0.4082482904638631;
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, true);
 
-        {
-            TensorFact::Array<float> C;
-            A.Multiply(false, B, false, C);
-
-            ASSERT_TRUE(std::abs(C({0, 0}) - 1.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 0}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 1}) - 1.0) < 1.0e-06);
-        }
-
-        {
-            TensorFact::Array<float> C;
-            A.Multiply(true, B, true, C);
-
-            ASSERT_TRUE(std::abs(C({0, 0}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 0}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 0}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 1}) - 1.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 2}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 2}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 2}) - 0.5) < 1.0e-06);
-        }
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
     }
-
     {
-        TensorFact::Array<float> A;
-        A.Resize({3, 2});
-        A({0, 0}) = 0.5773502691896258;
-        A({1, 0}) = 0.5773502691896258;
-        A({2, 0}) = 0.5773502691896258;
-        A({0, 1}) = 0.4082482904638631;
-        A({1, 1}) = -0.8164965809277261;
-        A({2, 1}) = 0.4082482904638631;
+        const std::size_t p = 32;
+        const std::size_t q = 8;
+        const std::size_t r = 16;
 
-        TensorFact::Array<float> B;
-        B.Resize({3, 2});
-        B({0, 0}) = 0.5773502691896258;
-        B({1, 0}) = 0.5773502691896258;
-        B({2, 0}) = 0.5773502691896258;
-        B({0, 1}) = 0.4082482904638631;
-        B({1, 1}) = -0.8164965809277261;
-        B({2, 1}) = 0.4082482904638631;
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, true);
 
-        {
-            TensorFact::Array<float> C;
-            A.Multiply(true, B, false, C);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
+    }
+    {
+        const std::size_t p = 16;
+        const std::size_t q = 8;
+        const std::size_t r = 32;
 
-            ASSERT_TRUE(std::abs(C({0, 0}) - 1.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 0}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 1}) - 1.0) < 1.0e-06);
-        }
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, true);
 
-        {
-            TensorFact::Array<float> C;
-            A.Multiply(false, B, true, C);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
+    }
+    {
+        const std::size_t p = 16;
+        const std::size_t q = 32;
+        const std::size_t r = 8;
 
-            ASSERT_TRUE(std::abs(C({0, 0}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 0}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 0}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 1}) - 1.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 1}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({0, 2}) - 0.5) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({1, 2}) - 0.0) < 1.0e-06);
-            ASSERT_TRUE(std::abs(C({2, 2}) - 0.5) < 1.0e-06);
-        }
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<float>(p, q, r, true, true);
+
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
+    }
+    {
+        const std::size_t p = 8;
+        const std::size_t q = 32;
+        const std::size_t r = 16;
+
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
+    }
+    {
+        const std::size_t p = 8;
+        const std::size_t q = 16;
+        const std::size_t r = 32;
+
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, false, true);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, false);
+        MatrixMatrixMultiplyTest<double>(p, q, r, true, true);
     }
 }
 
-TEST(Array, ReducedRq) {
-    std::random_device device;
-    std::mt19937 generator(device());
-    std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+template <typename Scalar>
+void ReducedRqTest(std::size_t m, std::size_t n) {
+    const Scalar epsilon = 100 * std::numeric_limits<Scalar>::epsilon();
+    const std::size_t k = std::min(m, n);
 
-    TensorFact::Array<double> A;
-    A.Resize({3, 4});
-    for (std::size_t j = 0; j < 4; ++j) {
-        for (std::size_t i = 0; i < 3; ++i) {
-            A({i, j}) = distribution(generator);
-        }
-    }
+    TensorFact::Array<Scalar> A = CreateRandomArray<Scalar>({m, n});
 
-    TensorFact::Array<double> R;
-    TensorFact::Array<double> Q;
+    TensorFact::Array<Scalar> R;
+    TensorFact::Array<Scalar> Q;
     A.ReducedRq(R, Q);
 
     ASSERT_EQ(R.NDim(), 2);
-    ASSERT_EQ(R.Size(0), 3);
-    ASSERT_EQ(R.Size(1), 3);
+    ASSERT_EQ(R.Size(0), m);
+    ASSERT_EQ(R.Size(1), k);
 
     ASSERT_EQ(Q.NDim(), 2);
-    ASSERT_EQ(Q.Size(0), 3);
-    ASSERT_EQ(Q.Size(1), 4);
+    ASSERT_EQ(Q.Size(0), k);
+    ASSERT_EQ(Q.Size(1), n);
 
-    TensorFact::Array<double> B;
-    R.Multiply(false, Q, false, B);
-
-    ASSERT_TRUE((A - B).FrobeniusNorm() < 1.0e-15);
-
-    for (std::size_t j = 0; j < 3; ++j) {
-        for (std::size_t i = j + 1; i < 3; ++i) {
-            ASSERT_TRUE(std::abs(R({i, j})) < 1.0e-15);
+    for (std::size_t j = 0; j < k; ++j) {
+        for (std::size_t i = j + m - k + 1; i < m; ++i) {
+            ASSERT_TRUE(std::abs(R({i, j})) < epsilon);
         }
     }
 
-    for (std::size_t j = 0; j < 3; ++j) {
-        for (std::size_t i = 0; i < j; ++i) {
-            double dot_product = 0.0;
-            for (std::size_t k = 0; k < 4; ++k) {
-                dot_product += Q({i, k}) * Q({j, k});
+    for (std::size_t i1 = 0; i1 < k; ++i1) {
+        for (std::size_t i2 = 0; i2 < i1; ++i2) {
+            Scalar dot_product = 0.0;
+            for (std::size_t j = 0; j < n; ++j) {
+                dot_product += Q({i1, j}) * Q({i2, j});
             }
 
-            ASSERT_TRUE(std::abs(dot_product) < 1.0e-15);
+            ASSERT_TRUE(std::abs(dot_product) < epsilon);
         }
 
-        double norm_squared = 0.0;
-        for (std::size_t k = 0; k < 4; ++k) {
-            norm_squared += std::pow(Q({j, k}), 2.0);
+        Scalar norm_squared = 0.0;
+        for (std::size_t j = 0; j < n; ++j) {
+            norm_squared += std::pow(Q({i1, j}), 2.0);
         }
 
-        ASSERT_TRUE(std::abs(norm_squared - 1.0) < 1.0e-15);
+        ASSERT_TRUE(std::abs(norm_squared - 1.0) < epsilon);
+    }
+
+    TensorFact::Array<Scalar> B;
+    R.Multiply(false, Q, false, B);
+
+    ASSERT_TRUE((A - B).FrobeniusNorm() < epsilon);
+}
+
+TEST(Array, ReducedRq) {
+    ReducedRqTest<float>(4, 64);
+    ReducedRqTest<double>(4, 64);
+
+    ReducedRqTest<float>(64, 4);
+    ReducedRqTest<double>(64, 4);
+}
+
+template <typename Scalar>
+void TruncatedSvdTest(std::size_t m, std::size_t n, std::size_t r) {
+    const Scalar epsilon = 100 * std::numeric_limits<Scalar>::epsilon();
+
+    // Construct appropriate matrix
+    TensorFact::Array<Scalar> A;
+    std::size_t k;
+    Scalar abs_acc;
+    Scalar rel_acc;
+
+    {
+        // Create Ut factor
+        TensorFact::Array<Scalar> Ut;
+        {
+            TensorFact::Array<Scalar> temp1 = CreateRandomArray<Scalar>({r, m});
+            TensorFact::Array<Scalar> temp2;
+
+            temp1.ReducedRq(temp2, Ut);
+        }
+
+        // Create s factor; s(i) ~ Uniform([2 * (r - 1 - i), 2 * (r - i)])
+        TensorFact::Array<Scalar> s = CreateRandomArray<Scalar>({r});
+        for (std::size_t i = 0; i < r; ++i) {
+            s({i}) += 2 * (r - 1 - i) + 1;
+        }
+
+        // Create Vt factor
+        TensorFact::Array<Scalar> Vt;
+        {
+            TensorFact::Array<Scalar> temp1 = CreateRandomArray<Scalar>({r, n});
+            TensorFact::Array<Scalar> temp2;
+
+            temp1.ReducedRq(temp2, Vt);
+        }
+
+        // Compute A = Ut.conjugate() * diagmat(s) * Vt
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < r; ++i) {
+                Vt({i, j}) *= s({i});
+            }
+        }
+
+        Ut.Multiply(true, Vt, false, A);
+
+        // Compute absolute and relative errors given specified maximum rank
+        TensorFact::Array<Scalar> absolute_error;
+        absolute_error.Resize({r});
+
+        absolute_error({r - 1}) = static_cast<Scalar>(0);
+        for (std::size_t i = r - 1; i > 0; --i) {
+            absolute_error({i - 1}) = absolute_error({i}) + std::pow(s({i}), 2);
+        }
+
+        Scalar frobenius_norm = absolute_error({0}) + std::pow(s({0}), 2);
+
+        for (std::size_t i = 0; i < r; ++i) {
+            absolute_error({i}) = std::sqrt(absolute_error({i}));
+        }
+
+        frobenius_norm = std::sqrt(frobenius_norm);
+
+        TensorFact::Array<Scalar> relative_error;
+        relative_error.Resize({r});
+
+        for (std::size_t i = 0; i < r; ++i) {
+            relative_error({i}) = absolute_error({i}) / frobenius_norm;
+        }
+
+        // Determine 75% Frobenius norm cutoff rank
+        k = 1;
+        while (k <= r) {
+            if (relative_error({k - 1}) <= 0.25) {
+                break;
+            }
+            ++k;
+        }
+
+        // Compute accuracy levels based on cutoff rank
+        abs_acc = (absolute_error({k - 2}) + absolute_error({k - 1})) / 2;
+        rel_acc = (relative_error({k - 2}) + relative_error({k - 1})) / 2;
+    }
+
+    // Test thin SVD
+    {
+        const std::size_t p = std::min(m, n);
+
+        TensorFact::Array<Scalar> U;
+        TensorFact::Array<Scalar> s;
+        TensorFact::Array<Scalar> Vt;
+        A.TruncatedSvd(U, s, Vt, static_cast<Scalar>(0), false);
+
+        ASSERT_EQ(U.NDim(), 2);
+        ASSERT_EQ(U.Size(0), m);
+        ASSERT_EQ(U.Size(1), p);
+
+        ASSERT_EQ(s.NDim(), 1);
+        ASSERT_EQ(s.NumberOfElements(), p);
+
+        ASSERT_EQ(Vt.NDim(), 2);
+        ASSERT_EQ(Vt.Size(0), p);
+        ASSERT_EQ(Vt.Size(1), n);
+
+        for (std::size_t j1 = 0; j1 < p; ++j1) {
+            for (std::size_t j2 = 0; j2 < j1; ++j2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t i = 0; i < m; ++i) {
+                    dot_product += U({i, j1}) * U({i, j2});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t i = 0; i < m; ++i) {
+                norm_squared += std::pow(U({i, j1}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t i = 0; i < p; ++i) {
+            if (i < p - 1) {
+                ASSERT_GE(s({i}), s({i + 1}));
+            } else {
+                ASSERT_GT(s({i}), static_cast<Scalar>(0));
+            }
+        }
+
+        for (std::size_t i1 = 0; i1 < p; ++i1) {
+            for (std::size_t i2 = 0; i2 < i1; ++i2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t j = 0; j < n; ++j) {
+                    dot_product += Vt({i1, j}) * Vt({i2, j});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t j = 0; j < n; ++j) {
+                norm_squared += std::pow(Vt({i1, j}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < p; ++i) {
+                Vt({i, j}) *= s({i});
+            }
+        }
+
+        TensorFact::Array<Scalar> B;
+        U.Multiply(false, Vt, false, B);
+
+        ASSERT_LE((A - B).FrobeniusNorm(), 10 * epsilon);
+    }
+
+    // Test truncated SVD with absolute error
+    {
+        TensorFact::Array<Scalar> U;
+        TensorFact::Array<Scalar> s;
+        TensorFact::Array<Scalar> Vt;
+        A.TruncatedSvd(U, s, Vt, abs_acc, false);
+
+        ASSERT_EQ(U.NDim(), 2);
+        ASSERT_EQ(U.Size(0), m);
+        ASSERT_EQ(U.Size(1), k);
+
+        ASSERT_EQ(s.NDim(), 1);
+        ASSERT_EQ(s.NumberOfElements(), k);
+
+        ASSERT_EQ(Vt.NDim(), 2);
+        ASSERT_EQ(Vt.Size(0), k);
+        ASSERT_EQ(Vt.Size(1), n);
+
+        for (std::size_t j1 = 0; j1 < k; ++j1) {
+            for (std::size_t j2 = 0; j2 < j1; ++j2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t i = 0; i < m; ++i) {
+                    dot_product += U({i, j1}) * U({i, j2});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t i = 0; i < m; ++i) {
+                norm_squared += std::pow(U({i, j1}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t i = 0; i < k; ++i) {
+            if (i < k - 1) {
+                ASSERT_GE(s({i}), s({i + 1}));
+            } else {
+                ASSERT_GT(s({i}), static_cast<Scalar>(0));
+            }
+        }
+
+        for (std::size_t i1 = 0; i1 < k; ++i1) {
+            for (std::size_t i2 = 0; i2 < i1; ++i2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t j = 0; j < n; ++j) {
+                    dot_product += Vt({i1, j}) * Vt({i2, j});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t j = 0; j < n; ++j) {
+                norm_squared += std::pow(Vt({i1, j}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < k; ++i) {
+                Vt({i, j}) *= s({i});
+            }
+        }
+
+        TensorFact::Array<Scalar> B;
+        U.Multiply(false, Vt, false, B);
+
+        ASSERT_LE((A - B).FrobeniusNorm(), abs_acc);
+    }
+
+    // Test thin SVD
+    {
+        TensorFact::Array<Scalar> U;
+        TensorFact::Array<Scalar> s;
+        TensorFact::Array<Scalar> Vt;
+        A.TruncatedSvd(U, s, Vt, rel_acc, true);
+
+        ASSERT_EQ(U.NDim(), 2);
+        ASSERT_EQ(U.Size(0), m);
+        ASSERT_EQ(U.Size(1), k);
+
+        ASSERT_EQ(s.NDim(), 1);
+        ASSERT_EQ(s.NumberOfElements(), k);
+
+        ASSERT_EQ(Vt.NDim(), 2);
+        ASSERT_EQ(Vt.Size(0), k);
+        ASSERT_EQ(Vt.Size(1), n);
+
+        for (std::size_t j1 = 0; j1 < k; ++j1) {
+            for (std::size_t j2 = 0; j2 < j1; ++j2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t i = 0; i < m; ++i) {
+                    dot_product += U({i, j1}) * U({i, j2});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t i = 0; i < m; ++i) {
+                norm_squared += std::pow(U({i, j1}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t i = 0; i < k; ++i) {
+            if (i < k - 1) {
+                ASSERT_GE(s({i}), s({i + 1}));
+            } else {
+                ASSERT_GT(s({i}), static_cast<Scalar>(0));
+            }
+        }
+
+        for (std::size_t i1 = 0; i1 < k; ++i1) {
+            for (std::size_t i2 = 0; i2 < i1; ++i2) {
+                Scalar dot_product = 0.0;
+                for (std::size_t j = 0; j < n; ++j) {
+                    dot_product += Vt({i1, j}) * Vt({i2, j});
+                }
+
+                ASSERT_TRUE(std::abs(dot_product) < epsilon);
+            }
+
+            Scalar norm_squared = 0.0;
+            for (std::size_t j = 0; j < n; ++j) {
+                norm_squared += std::pow(Vt({i1, j}), 2);
+            }
+
+            ASSERT_TRUE(std::abs(norm_squared - static_cast<Scalar>(1)) <
+                        epsilon);
+        }
+
+        for (std::size_t j = 0; j < n; ++j) {
+            for (std::size_t i = 0; i < k; ++i) {
+                Vt({i, j}) *= s({i});
+            }
+        }
+
+        TensorFact::Array<Scalar> B;
+        U.Multiply(false, Vt, false, B);
+
+        ASSERT_LE((A - B).FrobeniusNorm(), rel_acc * A.FrobeniusNorm());
     }
 }
 
 TEST(Array, TruncatedSvd) {
-    TensorFact::Array<double> A;
-    A.Resize({4, 3});
-    A({0, 0}) = 0.8730758679812514;
-    A({1, 0}) = 0.8905818857769324;
-    A({2, 0}) = 1.0004504376390704;
-    A({3, 0}) = 1.2121943608516716;
-    A({0, 1}) = 1.039764271321522;
-    A({1, 1}) = 0.9910014553992643;
-    A({2, 1}) = 0.7262655727821424;
-    A({3, 1}) = 0.9997665065853555;
-    A({0, 2}) = 0.5079667994149603;
-    A({1, 2}) = 0.6486914410114907;
-    A({2, 2}) = 1.1665137875687934;
-    A({3, 2}) = 1.023738282971006;
+    TruncatedSvdTest<float>(16, 64, 8);
+    TruncatedSvdTest<double>(16, 64, 8);
 
-    TensorFact::Array<double> U_true;
-    U_true.Resize({4, 3});
-    U_true({0, 0}) = -0.4374561669866752;
-    U_true({1, 0}) = -0.4552544328197976;
-    U_true({2, 0}) = -0.514262977748206;
-    U_true({3, 0}) = -0.5804387074280961;
-    U_true({0, 1}) = -0.6166991646254513;
-    U_true({1, 1}) = -0.361342760559755;
-    U_true({2, 1}) = 0.6849330008504085;
-    U_true({3, 1}) = 0.14135180963603095;
-    U_true({0, 2}) = -0.10536900266635602;
-    U_true({1, 2}) = -0.3861054867694944;
-    U_true({2, 2}) = -0.4619084065205092;
-    U_true({3, 2}) = 0.7914926091564425;
-
-    TensorFact::Array<double> s_true;
-    s_true.Resize({3});
-    s_true({0}) = 3.2265338169944235;
-    s_true({1}) = 0.5355825867628933;
-    s_true({2}) = 0.07847516615102999;
-
-    TensorFact::Array<double> V_true;
-    V_true.Resize({3, 3});
-    V_true({0, 0}) = -0.6215564555795905;
-    V_true({1, 0}) = -0.5764091990342418;
-    V_true({2, 0}) = -0.5304903465625369;
-    V_true({0, 1}) = -0.0068021041920685536;
-    V_true({1, 1}) = -0.673193835938418;
-    V_true({2, 1}) = 0.7394347778087524;
-    V_true({0, 2}) = 0.7833398393455403;
-    V_true({1, 2}) = -0.46320891023729516;
-    V_true({2, 2}) = -0.4145071791548137;
-
-    {
-        TensorFact::Array<double> U, s, Vt;
-        A.TruncatedSvd(U, s, Vt, 0.0, false);
-
-        ASSERT_TRUE(s.NumberOfElements() == 3);
-
-        for (std::size_t r = 0; r < 3; ++r) {
-            if (U({0, r}) * U_true({0, r}) < 0.0) {
-                for (std::size_t i = 0; i < 4; ++i) {
-                    U({i, r}) = -U({i, r});
-                }
-                for (std::size_t j = 0; j < 3; ++j) {
-                    Vt({r, j}) = -Vt({r, j});
-                }
-            }
-        }
-
-        for (std::size_t r = 0; r < 3; ++r) {
-            for (std::size_t i = 0; i < 4; ++i) {
-                EXPECT_TRUE(std::abs(U({i, r}) - U_true({i, r})) < 1.0e-15);
-            }
-        }
-
-        for (std::size_t r = 0; r < 3; ++r) {
-            ASSERT_TRUE(std::abs(s({r}) - s_true({r})) < 1.0e-15);
-        }
-
-        for (std::size_t j = 0; j < 3; ++j) {
-            for (std::size_t r = 0; r < 3; ++r) {
-                ASSERT_TRUE(std::abs(Vt({r, j}) - V_true({j, r})) < 1.0e-15);
-            }
-        }
-    }
-
-    {
-        TensorFact::Array<double> U, s, Vt;
-        A.TruncatedSvd(U, s, Vt, 1.0e-01, false);
-
-        const std::size_t rank = s.NumberOfElements();
-
-        ASSERT_TRUE(rank == 2);
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            if (U({0, r}) * U_true({0, r}) < 0.0) {
-                for (std::size_t i = 0; i < 4; ++i) {
-                    U({i, r}) = -U({i, r});
-                }
-                for (std::size_t j = 0; j < 3; ++j) {
-                    Vt({r, j}) = -Vt({r, j});
-                }
-            }
-        }
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            for (std::size_t i = 0; i < 4; ++i) {
-                EXPECT_TRUE(std::abs(U({i, r}) - U_true({i, r})) < 1.0e-15);
-            }
-        }
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            ASSERT_TRUE(std::abs(s({r}) - s_true({r})) < 1.0e-15);
-        }
-
-        for (std::size_t j = 0; j < 3; ++j) {
-            for (std::size_t r = 0; r < rank; ++r) {
-                ASSERT_TRUE(std::abs(Vt({r, j}) - V_true({j, r})) < 1.0e-15);
-            }
-        }
-    }
-
-    {
-        TensorFact::Array<double> U, s, Vt;
-        A.TruncatedSvd(U, s, Vt, 2.0e-01, true);
-
-        const std::size_t rank = s.NumberOfElements();
-
-        ASSERT_TRUE(rank == 1);
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            if (U({0, r}) * U_true({0, r}) < 0.0) {
-                for (std::size_t i = 0; i < 4; ++i) {
-                    U({i, r}) = -U({i, r});
-                }
-                for (std::size_t j = 0; j < 3; ++j) {
-                    Vt({r, j}) = -Vt({r, j});
-                }
-            }
-        }
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            for (std::size_t i = 0; i < 4; ++i) {
-                EXPECT_TRUE(std::abs(U({i, r}) - U_true({i, r})) < 1.0e-15);
-            }
-        }
-
-        for (std::size_t r = 0; r < rank; ++r) {
-            ASSERT_TRUE(std::abs(s({r}) - s_true({r})) < 1.0e-15);
-        }
-
-        for (std::size_t j = 0; j < 3; ++j) {
-            for (std::size_t r = 0; r < rank; ++r) {
-                ASSERT_TRUE(std::abs(Vt({r, j}) - V_true({j, r})) < 1.0e-15);
-            }
-        }
-    }
+    TruncatedSvdTest<float>(64, 16, 8);
+    TruncatedSvdTest<double>(64, 16, 8);
 }
 
 int main(int argc, char **argv) {
