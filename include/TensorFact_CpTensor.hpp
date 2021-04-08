@@ -3,10 +3,9 @@
 #ifndef TENSORFACT_CPTENSOR_HPP
 #define TENSORFACT_CPTENSOR_HPP
 
+#include <memory>
 #include <string>
 #include <vector>
-
-#include "TensorFact_Array.hpp"
 
 namespace TensorFact {
 
@@ -21,20 +20,23 @@ namespace TensorFact {
 /// Assuming \f$n_k \sim n\f$, this reduces the storage complexity
 /// \f$\mathcal{O}(n^d)\f$ of the full tensor to \f$\mathcal{O}(d n r)\f$ in the
 /// CP format.
-template <typename Scalar>
 class CpTensor {
 public:
     /// Default constructor
     CpTensor() = default;
 
-    /// Construct a CP tensor from its factors
-    CpTensor(const std::vector<Array<Scalar>> &factor);
+    /// Construct a CP tensor from its parameters
+    CpTensor(int ndim, const std::vector<int> &size, int rank,
+             const std::vector<double> &param);
 
     /// Default destructor
     ~CpTensor() = default;
 
+    /// Number of parameters
+    int NumParam() const { return offset_[ndim_]; }
+
     /// Compute and return entry of CP tensor at specified index
-    Scalar operator()(const std::vector<std::size_t> &index) const;
+    double Entry(const std::vector<int> &index) const;
 
     /// Write to file
     void WriteToFile(const std::string &file_name) const;
@@ -45,10 +47,13 @@ public:
     void ReadFromFile(const std::string &file_name);
 
 private:
-    std::size_t ndim_;
-    std::vector<std::size_t> size_;
-    std::size_t rank_;
-    std::vector<Array<Scalar>> factor_;
+    int LinearIndex(int i, int r, int d) const;
+
+    int ndim_;
+    std::vector<int> size_;
+    int rank_;
+    std::vector<int> offset_;
+    std::vector<double> param_;
 };
 
 }  // namespace TensorFact

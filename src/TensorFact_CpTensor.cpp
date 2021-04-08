@@ -5,48 +5,61 @@
 #include <sstream>
 #include <stdexcept>
 
-template <typename Scalar>
-TensorFact::CpTensor<Scalar>::CpTensor(
-    const std::vector<TensorFact::Array<Scalar>> &factor)
-    : ndim_(factor.size()), size_(factor.size()), rank_(0), factor_(factor) {
-    for (std::size_t d = 0; d < ndim_; ++d) {
-        if (factor_[d].NDim() != 2) {
-            throw std::invalid_argument(
-                "Factors must be a vector of 2D arrays");
-        }
+TensorFact::CpTensor::CpTensor(int ndim, const std::vector<int> &size, int rank,
+                               const std::vector<double> &param)
+    : ndim_(ndim), size_(size), rank_(rank), offset_(ndim + 1), param_(param) {
+    // validate inputs
+    if (ndim_ < 1) {
+        throw std::invalid_argument("Dimension must be at least one");
+    }
 
-        if (d == 0) {
-            rank_ = factor[0].Size(1);
-        } else if (factor_[d].Size(1) != rank_) {
-            throw std::invalid_argument(
-                "Factors must have the same number of columns");
-        }
+    if (size_.size() != ndim_) {
+        throw std::invalid_argument(
+            "Length of the size vector is incompatible with specified "
+            "dimension");
+    }
 
-        size_[d] = factor[d].Size(0);
+    for (int d = 0; d < ndim_; ++d) {
+        if (size_[d] < 1) {
+            throw std::invalid_argument("Sizes must be at least one");
+        }
+    }
+
+    if (rank_ < 1) {
+        throw std::invalid_argument("Rank must be at least one");
+    }
+
+    offset_[0] = 0;
+    for (int d = 0; d < ndim_; ++d) {
+        offset_[d + 1] = offset_[d] + size_[d] * rank_;
+    }
+
+    if (param_.size() != offset_[ndim_]) {
+        throw std::invalid_argument(
+            "Number of entries in the parameter vector does not match size and "
+            "rank specification");
     }
 }
 
-template <typename Scalar>
-Scalar TensorFact::CpTensor<Scalar>::operator()(
-    const std::vector<std::size_t> &index) const {
+double TensorFact::CpTensor::Entry(const std::vector<int> &index) const {
     if (index.size() != ndim_) {
         throw std::invalid_argument(
             "Size of index array does not match dimensionality");
     }
 
-    for (std::size_t d = 0; d < ndim_; ++d) {
-        if (index[d] >= size_[d]) {
-            throw std::invalid_argument("Index is out of range");
+    for (int d = 0; d < ndim_; ++d) {
+        if (index[d] < 0 || index[d] >= size_[d]) {
+            throw std::out_of_range("Index is out of range");
         }
     }
 
-    Scalar value = static_cast<Scalar>(0);
+    double value = 0.0;
 
-    for (std::size_t r = 0; r < rank_; ++r) {
-        Scalar temp = static_cast<Scalar>(1);
+    for (int r = 0; r < rank_; ++r) {
+        double temp = 1.0;
 
-        for (std::size_t d = 0; d < ndim_; ++d) {
-            temp *= factor_[d]({index[d], r});
+        for (int d = 0; d < ndim_; ++d) {
+            temp *= param_[LinearIndex(index[d], r, d)];
         }
 
         value += temp;
@@ -55,16 +68,14 @@ Scalar TensorFact::CpTensor<Scalar>::operator()(
     return value;
 }
 
-template <typename Scalar>
-void TensorFact::CpTensor<Scalar>::WriteToFile(
-    const std::string &file_name) const {
+void TensorFact::CpTensor::WriteToFile(const std::string &file_name) const {
     std::ofstream file(file_name);
 
     file << "CP Tensor" << std::endl;
 
     file << ndim_ << std::endl;
 
-    for (std::size_t d = 0; d < ndim_; ++d) {
+    for (int d = 0; d < ndim_; ++d) {
         file << size_[d] << std::endl;
     }
 
@@ -72,18 +83,19 @@ void TensorFact::CpTensor<Scalar>::WriteToFile(
 
     file << std::scientific;
 
-    for (std::size_t d = 0; d < ndim_; ++d) {
-        for (std::size_t r = 0; r < rank_; ++r) {
-            for (std::size_t i = 0; i < size_[d]; ++i) {
-                file << std::setprecision(17) << factor_[d]({i, r})
+    for (int d = 0; d < ndim_; ++d) {
+        for (int r = 0; r < rank_; ++r) {
+            for (int i = 0; i < size_[d]; ++i) {
+                file << std::setprecision(17) << param_[LinearIndex(i, r, d)]
                      << std::endl;
             }
         }
     }
+
+    file << std::defaultfloat;
 }
 
-template <typename Scalar>
-void TensorFact::CpTensor<Scalar>::ReadFromFile(const std::string &file_name) {
+void TensorFact::CpTensor::ReadFromFile(const std::string &file_name) {
     std::ifstream file(file_name);
 
     {
@@ -102,7 +114,7 @@ void TensorFact::CpTensor<Scalar>::ReadFromFile(const std::string &file_name) {
     }
 
     size_.resize(ndim_);
-    for (std::size_t d = 0; d < ndim_; ++d) {
+    for (int d = 0; d < ndim_; ++d) {
         std::string line;
         std::getline(file, line);
         std::istringstream line_stream(line);
@@ -116,22 +128,25 @@ void TensorFact::CpTensor<Scalar>::ReadFromFile(const std::string &file_name) {
         line_stream >> rank_;
     }
 
-    factor_.resize(ndim_);
-    for (std::size_t d = 0; d < ndim_; ++d) {
-        factor_[d].Resize({size_[d], rank_});
+    offset_.resize(ndim_ + 1);
+    offset_[0] = 0;
+    for (int d = 0; d < ndim_; ++d) {
+        offset_[d + 1] = offset_[d] + size_[d] * rank_;
+    }
 
-        for (std::size_t r = 0; r < rank_; ++r) {
-            for (std::size_t i = 0; i < size_[d]; ++i) {
+    param_.resize(offset_[ndim_]);
+    for (int d = 0; d < ndim_; ++d) {
+        for (int r = 0; r < rank_; ++r) {
+            for (int i = 0; i < size_[d]; ++i) {
                 std::string line;
                 std::getline(file, line);
                 std::istringstream line_stream(line);
-                line_stream >> factor_[d]({i, r});
+                line_stream >> param_[LinearIndex(i, r, d)];
             }
         }
     }
 }
 
-// explicit instantiations -----------------------------------------------------
-
-template class TensorFact::CpTensor<float>;
-template class TensorFact::CpTensor<double>;
+int TensorFact::CpTensor::LinearIndex(int i, int r, int d) const {
+    return offset_[d] + i + size_[d] * r;
+}
