@@ -3,11 +3,8 @@
 #ifndef TENSORFACT_TTTENSOR_HPP
 #define TENSORFACT_TTTENSOR_HPP
 
-#include <cmath>
 #include <string>
 #include <vector>
-
-#include "TensorFact_Array.hpp"
 
 namespace TensorFact {
 
@@ -24,34 +21,26 @@ namespace TensorFact {
 /// 1\f$. Assuming \f$n_k \sim n\f$ and \f$r_k \sim r\f$, this reduces the
 /// storage complexity \f$\mathcal{O}(n^d)\f$ of the full tensor to
 /// \f$\mathcal{O}(d n r^2)\f$ in the TT format.
-template <typename Scalar>
 class TtTensor {
 public:
     /// Default constructor
     TtTensor() = default;
 
-    /// Construct a TT-tensor from the cores
-    TtTensor(const std::vector<TensorFact::Array<Scalar>> &cores);
+    /// Construct a TT-tensor from the parameters
+    TtTensor(int ndim, const std::vector<int> &size,
+             const std::vector<int> &rank, const std::vector<double> &param);
 
     /// Default destructor
     ~TtTensor() = default;
 
-    /// Return the dimensionality of the TT-tensor
-    const std::size_t &NDim() const { return ndim_; }
+    /// TT-ranks of the TT-tensor
+    int Rank(int d) const { return rank_[d]; }
 
-    /// Return the size of the TT-tensor
-    const std::vector<std::size_t> &Size() const { return size_; }
-
-    /// Return the TT-ranks of the TT-tensor
-    const std::vector<std::size_t> &Rank() const { return rank_; }
-
-    /// Return the specified core of the TT-tensor
-    const TensorFact::Array<Scalar> &Core(std::size_t i) const {
-        return core_[i];
-    }
+    /// Number of parameters
+    int NumParam() const { return offset_[ndim_]; }
 
     /// Compute and return the entry of the TT-tensor at given index
-    Scalar operator()(const std::vector<std::size_t> &index) const;
+    double Entry(const std::vector<int> &index) const;
 
     /// Write to file
     void WriteToFile(const std::string &file_name) const;
@@ -60,54 +49,56 @@ public:
     void ReadFromFile(const std::string &file_name);
 
     /// Addition
-    TtTensor<Scalar> operator+(const TtTensor<Scalar> &other) const;
+    TtTensor operator+(const TtTensor &other) const;
 
     /// Subtraction
-    TtTensor<Scalar> operator-(const TtTensor<Scalar> &other) const;
+    TtTensor operator-(const TtTensor &other) const;
 
     /// Scalar multiplication
-    TtTensor<Scalar> operator*(Scalar alpha) const;
+    TtTensor operator*(double alpha) const;
 
     /// Scalar division
-    TtTensor<Scalar> operator/(Scalar alpha) const;
+    TtTensor operator/(double alpha) const;
 
     /// Compute from full tensor using TT-SVD
-    void ComputeFromFull(const TensorFact::Array<Scalar> &array,
-                         Scalar rel_acc);
+    void ComputeFromFull(const std::vector<int> &size,
+                         const std::vector<double> &array,
+                         double relative_tolerance);
 
     /// Rounding
-    void Round(Scalar rel_acc);
+    void Round(double relative_tolerance);
 
     /// Concatenation
-    TtTensor<Scalar> Concatenate(const TtTensor<Scalar> &other, std::size_t dim,
-                                 Scalar rel_acc) const;
+    TtTensor Concatenate(const TtTensor &other, int dim, double rel_acc) const;
 
     /// Dot product
-    Scalar Dot(const TtTensor<Scalar> &other) const;
+    double Dot(const TtTensor &other) const;
 
     /// 2-norm
-    Scalar FrobeniusNorm() const { return std::sqrt(this->Dot(*this)); }
+    double FrobeniusNorm() const;
 
 private:
+    /// Linear index for unwrapping paramter vector
+    int LinearIndex(int i, int j, int k, int d) const;
+
     /// Zero-padding to the back of a dimension
-    TtTensor<Scalar> AddZeroPaddingBack(std::size_t dim, std::size_t pad) const;
+    TtTensor AddZeroPaddingBack(int dim, int pad) const;
 
     /// Zero-padding to the front of a dimension
-    TtTensor<Scalar> AddZeroPaddingFront(std::size_t dim,
-                                         std::size_t pad) const;
+    TtTensor AddZeroPaddingFront(int dim, int pad) const;
 
-    std::size_t ndim_;
-    std::vector<std::size_t> size_;
-    std::vector<std::size_t> rank_;
-    std::vector<TensorFact::Array<Scalar>> core_;
+    int ndim_;
+    std::vector<int> size_;
+    std::vector<int> rank_;
+    std::vector<int> offset_;
+    std::vector<double> param_;
 };
 
 }  // namespace TensorFact
 
 /// Scalar multiplication
-template <typename Scalar>
-inline TensorFact::TtTensor<Scalar> operator*(
-    Scalar alpha, const TensorFact::TtTensor<Scalar> &tensor) {
+inline TensorFact::TtTensor operator*(double alpha,
+                                      const TensorFact::TtTensor &tensor) {
     return tensor * alpha;
 }
 

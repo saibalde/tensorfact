@@ -1,4 +1,5 @@
-add_library(tensorfact TensorFact_Array.cpp
+add_library(tensorfact utils.cpp
+                       TensorFact_Array.cpp
                        TensorFact_CpTensor.cpp
                        TensorFact_TtTensor.cpp)
 target_include_directories(tensorfact PUBLIC ${PROJECT_SOURCE_DIR}/include)

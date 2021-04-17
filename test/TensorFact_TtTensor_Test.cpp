@@ -1,66 +1,65 @@
 #include "TensorFact_TtTensor.hpp"
 
+#include <gtest/gtest.h>
+
 #include <cmath>
 
-#include "TensorFact_Array.hpp"
-#include "gtest/gtest.h"
+TensorFact::TtTensor SumOfIndicesTtTensor(const std::vector<int> &size) {
+    const int ndim = size.size();
+    std::vector<int> rank(ndim + 1);
+    std::vector<int> offset(ndim + 1);
 
-template <typename Scalar>
-TensorFact::TtTensor<Scalar> SumOfIndicesTtTensor(
-    const std::vector<std::size_t> &dims) {
-    const std::size_t ndim = dims.size();
-
-    std::vector<TensorFact::Array<Scalar>> cores(ndim);
-
-    cores[0].Resize({1, dims[0], 2});
-    for (std::size_t i = 0; i < dims[0]; ++i) {
-        cores[0]({0, i, 0}) = static_cast<Scalar>(i);
-        cores[0]({0, i, 1}) = static_cast<Scalar>(1);
+    offset[0] = 0;
+    rank[0] = 1;
+    for (int d = 0; d < ndim; ++d) {
+        rank[d + 1] = (d < ndim - 1) ? 2 : 1;
+        offset[d + 1] = offset[d] + rank[d] * size[d] * rank[d + 1];
     }
+    std::vector<double> param(offset[ndim]);
 
-    for (std::size_t d = 1; d < ndim - 1; ++d) {
-        cores[d].Resize({2, dims[d], 2});
-        for (std::size_t i = 0; i < dims[d]; ++i) {
-            cores[d]({0, i, 0}) = static_cast<Scalar>(1);
-            cores[d]({1, i, 0}) = static_cast<Scalar>(i);
-            cores[d]({0, i, 1}) = static_cast<Scalar>(0);
-            cores[d]({1, i, 1}) = static_cast<Scalar>(1);
+    for (int d = 0; d < ndim; ++d) {
+        for (int i = 0; i < size[d]; ++i) {
+            if (d == 0) {
+                // (0, i, 0, d) = i
+                param[i + offset[d]] = i;
+
+                // (0, i, 1, d) = 1
+                param[i + size[d] + offset[d]] = 1.0;
+            } else if (d < ndim - 1) {
+                // (0, i, 0, d) = 1
+                param[2 * i + offset[d]] = 1.0;
+
+                // (1, i, 0, d) = i
+                param[1 + 2 * i + offset[d]] = i;
+
+                // (0, i, 1, d) = 0
+                param[2 * i + 2 * size[d] + offset[d]] = 0.0;
+
+                // (1, i, 1, d) = 1
+                param[1 + 2 * i + 2 * size[d] + offset[d]] = 1.0;
+            } else {
+                // (0, i, 0, d) = 1
+                param[2 * i + offset[d]] = 1.0;
+
+                // (1, i, 0, d) = i
+                param[1 + 2 * i + offset[d]] = i;
+            }
         }
     }
 
-    cores[ndim - 1].Resize({2, dims[ndim - 1], 1});
-    for (std::size_t i = 0; i < dims[ndim - 1]; ++i) {
-        cores[ndim - 1]({0, i, 0}) = static_cast<Scalar>(1);
-        cores[ndim - 1]({1, i, 0}) = static_cast<Scalar>(i);
-    }
-
-    return TensorFact::TtTensor<Scalar>(cores);
+    return TensorFact::TtTensor(ndim, size, rank, param);
 }
 
-TEST(TtTensor, ConstructFromCore) {
-    const std::vector<std::size_t> size{5, 3, 6, 4};
-    TensorFact::TtTensor<float> tt_tensor = SumOfIndicesTtTensor<float>(size);
+TEST(TtTensor, ConstructFromParamAndEntry) {
+    const std::vector<int> size{5, 3, 6, 4};
+    TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
 
-    ASSERT_TRUE(tt_tensor.NDim() == 4);
-
-    for (std::size_t d = 0; d < 4; ++d) {
-        ASSERT_TRUE(tt_tensor.Size()[d] == size[d]);
-    }
-
-    for (std::size_t d = 0; d <= 4; ++d) {
-        if ((d == 0) || (d == 4)) {
-            ASSERT_TRUE(tt_tensor.Rank()[d] == 1);
-        } else {
-            ASSERT_TRUE(tt_tensor.Rank()[d] == 2);
-        }
-    }
-
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
-                                         (i + j + k + l)) < 1.0e-05f);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}), i + j + k + l,
+                                1.0e-15);
                 }
             }
         }
@@ -69,21 +68,21 @@ TEST(TtTensor, ConstructFromCore) {
 
 TEST(TtTensor, FileIO) {
     {
-        const TensorFact::TtTensor<double> tt_tensor =
-            SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+        const std::vector<int> size{5, 3, 6, 4};
+        const TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
         tt_tensor.WriteToFile("tt_tensor.txt");
     }
 
     {
-        TensorFact::TtTensor<double> tt_tensor;
+        TensorFact::TtTensor tt_tensor;
         tt_tensor.ReadFromFile("tt_tensor.txt");
 
-        for (std::size_t l = 0; l < 4; ++l) {
-            for (std::size_t k = 0; k < 6; ++k) {
-                for (std::size_t j = 0; j < 3; ++j) {
-                    for (std::size_t i = 0; i < 5; ++i) {
-                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
-                                             (i + j + k + l)) < 1.0e-15);
+        for (int l = 0; l < 4; ++l) {
+            for (int k = 0; k < 6; ++k) {
+                for (int j = 0; j < 3; ++j) {
+                    for (int i = 0; i < 5; ++i) {
+                        ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                    i + j + k + l, 1.0e-15);
                     }
                 }
             }
@@ -92,19 +91,17 @@ TEST(TtTensor, FileIO) {
 }
 
 TEST(TtTensor, Addition) {
-    TensorFact::TtTensor<float> tt_tensor1 =
-        5.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
-    TensorFact::TtTensor<float> tt_tensor2 =
-        -2.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor1 = 5.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
 
-    TensorFact::TtTensor<float> tt_tensor = tt_tensor1 + tt_tensor2;
+    TensorFact::TtTensor tt_tensor = tt_tensor1 + tt_tensor2;
 
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
-                                         3.0f * (i + j + k + l)) < 1.0e-05f);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                3.0 * (i + j + k + l), 1.0e-15);
                 }
             }
         }
@@ -112,16 +109,15 @@ TEST(TtTensor, Addition) {
 }
 
 TEST(TtTensor, ScalarMultiplication) {
-    TensorFact::TtTensor<double> tt_tensor1 =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
-    TensorFact::TtTensor<double> tt_tensor2 = 2.0 * tt_tensor1;
+    TensorFact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor2 = 2.0 * tt_tensor1;
 
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(std::abs(tt_tensor2({i, j, k, l}) -
-                                         2.0 * (i + j + k + l)) < 1.0e-15);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}),
+                                2.0 * (i + j + k + l), 1.0e-15);
                 }
             }
         }
@@ -129,97 +125,90 @@ TEST(TtTensor, ScalarMultiplication) {
 }
 
 TEST(TtTensor, ComputeFromFull) {
-    TensorFact::Array<float> array;
-    array.Resize({3, 4, 5, 6});
-    for (std::size_t l = 0; l < 6; ++l) {
-        for (std::size_t k = 0; k < 5; ++k) {
-            for (std::size_t j = 0; j < 4; ++j) {
-                for (std::size_t i = 0; i < 3; ++i) {
-                    array({i, j, k, l}) = i + j + k + l;
+    const std::vector<int> size{3, 4, 5, 6};
+    std::vector<double> array(360);
+    for (int l = 0; l < 6; ++l) {
+        for (int k = 0; k < 5; ++k) {
+            for (int j = 0; j < 4; ++j) {
+                for (int i = 0; i < 3; ++i) {
+                    array[i + 3 * j + 12 * k + 60 * l] = i + j + k + l;
                 }
             }
         }
     }
 
-    float rel_acc = 1.0e-06f;
+    float relative_tolerance = 1.0e-15;
 
-    TensorFact::TtTensor<float> tt_tensor;
-    tt_tensor.ComputeFromFull(array, rel_acc);
+    TensorFact::TtTensor tt_tensor;
+    tt_tensor.ComputeFromFull(size, array, relative_tolerance);
 
-    const std::vector<std::size_t> &ranks = tt_tensor.Rank();
-    ASSERT_EQ(ranks[0], 1);
-    ASSERT_EQ(ranks[1], 2);
-    ASSERT_EQ(ranks[2], 2);
-    ASSERT_EQ(ranks[3], 2);
-    ASSERT_EQ(ranks[4], 1);
+    ASSERT_EQ(tt_tensor.Rank(0), 1);
+    ASSERT_EQ(tt_tensor.Rank(1), 2);
+    ASSERT_EQ(tt_tensor.Rank(2), 2);
+    ASSERT_EQ(tt_tensor.Rank(3), 2);
+    ASSERT_EQ(tt_tensor.Rank(4), 1);
 
-    float absolute_error = 0.0f;
-    for (std::size_t l = 0; l < 6; ++l) {
-        for (std::size_t k = 0; k < 5; ++k) {
-            for (std::size_t j = 0; j < 4; ++j) {
-                for (std::size_t i = 0; i < 3; ++i) {
-                    absolute_error +=
-                        std::pow(i + j + k + l - tt_tensor({i, j, k, l}), 2.0f);
+    double frobenius_norm = 0.0;
+    double absolute_error = 0.0;
+    for (int l = 0; l < 6; ++l) {
+        for (int k = 0; k < 5; ++k) {
+            for (int j = 0; j < 4; ++j) {
+                for (int i = 0; i < 3; ++i) {
+                    frobenius_norm += std::pow(i + j + k + l, 2.0);
+                    absolute_error += std::pow(
+                        i + j + k + l - tt_tensor.Entry({i, j, k, l}), 2.0);
                 }
             }
         }
     }
+    frobenius_norm = std::sqrt(frobenius_norm);
     absolute_error = std::sqrt(absolute_error);
 
-    ASSERT_TRUE(absolute_error <= rel_acc * array.FrobeniusNorm());
+    ASSERT_LE(absolute_error, relative_tolerance * frobenius_norm);
 }
 
 TEST(TtTensor, Round) {
-    const TensorFact::TtTensor<double> tt_tensor =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    const TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
 
-    const TensorFact::TtTensor<double> tt_tensor_1 = 2.0 * tt_tensor;
+    const TensorFact::TtTensor tt_tensor_1 = 2.0 * tt_tensor;
 
-    TensorFact::TtTensor<double> tt_tensor_2 = tt_tensor + tt_tensor;
-    tt_tensor_2.Round(1.0e-15);
+    TensorFact::TtTensor tt_tensor_2 = tt_tensor + tt_tensor;
+    tt_tensor_2.Round(1.0e-14);
 
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
-                    ASSERT_TRUE(std::abs(tt_tensor_1({i, j, k, l}) -
-                                         tt_tensor_2({i, j, k, l})) < 1.0e-13);
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
+                    ASSERT_NEAR(tt_tensor_1.Entry({i, j, k, l}),
+                                tt_tensor_2.Entry({i, j, k, l}), 1.0e-13);
                 }
             }
         }
     }
 
-    const std::size_t &ndim = tt_tensor_1.NDim();
-
-    const std::vector<std::size_t> &rank_1 = tt_tensor_1.Rank();
-    const std::vector<std::size_t> &rank_2 = tt_tensor_2.Rank();
-
-    for (std::size_t d = 0; d <= ndim; ++d) {
-        ASSERT_EQ(rank_1[d], rank_2[d]);
+    for (int d = 0; d <= 4; ++d) {
+        ASSERT_EQ(tt_tensor_1.Rank(d), tt_tensor_2.Rank(d));
     }
 }
 
 TEST(TtTensor, Concatenate) {
-    const TensorFact::TtTensor<float> tt_tensor_1 =
-        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
-    const TensorFact::TtTensor<float> tt_tensor_2 =
-        SumOfIndicesTtTensor<float>({5, 7, 6, 4});
+    const TensorFact::TtTensor tt_tensor_1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    const TensorFact::TtTensor tt_tensor_2 = SumOfIndicesTtTensor({5, 7, 6, 4});
 
-    const TensorFact::TtTensor<float> tt_tensor =
-        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-05f);
+    const TensorFact::TtTensor tt_tensor =
+        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-14);
 
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 10; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 10; ++j) {
+                for (int i = 0; i < 5; ++i) {
                     if (j < 3) {
-                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
-                                             tt_tensor_1({i, j, k, l})) <
-                                    1.0e-04f);
+                        ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                    tt_tensor_1.Entry({i, j, k, l}), 1.0e-13);
                     } else {
-                        ASSERT_TRUE(std::abs(tt_tensor({i, j, k, l}) -
-                                             tt_tensor_2({i, j - 3, k, l})) <
-                                    1.0e-04f);
+                        ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                    tt_tensor_2.Entry({i, j - 3, k, l}),
+                                    1.0e-13);
                     }
                 }
             }
@@ -228,18 +217,16 @@ TEST(TtTensor, Concatenate) {
 }
 
 TEST(TtTensor, DotProduct) {
-    TensorFact::TtTensor<double> tt_tensor1 =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
-    TensorFact::TtTensor<double> tt_tensor2 =
-        -2.0 * SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
 
     double obtained_value = tt_tensor1.Dot(tt_tensor2);
 
     double expected_value = 0.0;
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
                     expected_value += std::pow(i + j + k + l, 2.0);
                 }
             }
@@ -247,20 +234,19 @@ TEST(TtTensor, DotProduct) {
     }
     expected_value *= -2.0;
 
-    ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
+    ASSERT_NEAR(obtained_value, expected_value, 1.0e-15);
 }
 
 TEST(TtTensor, FrobeniusNorm) {
-    TensorFact::TtTensor<float> tt_tensor =
-        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
+    TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
 
     float obtained_value = tt_tensor.FrobeniusNorm();
 
     float expected_value = 0.0f;
-    for (std::size_t l = 0; l < 4; ++l) {
-        for (std::size_t k = 0; k < 6; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                for (std::size_t i = 0; i < 5; ++i) {
+    for (int l = 0; l < 4; ++l) {
+        for (int k = 0; k < 6; ++k) {
+            for (int j = 0; j < 3; ++j) {
+                for (int i = 0; i < 5; ++i) {
                     expected_value += std::pow(i + j + k + l, 2.0f);
                 }
             }
