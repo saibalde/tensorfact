@@ -1,11 +1,11 @@
-#include "TensorFact_CpTensor.hpp"
+#include "tensorfact/cp_tensor.hpp"
+
+#include <gtest/gtest.h>
 
 #include <cmath>
 #include <vector>
 
-#include "gtest/gtest.h"
-
-TensorFact::CpTensor ProductOfIndicesCpTensor(const std::vector<int> size) {
+tensorfact::CpTensor ProductOfIndicesCpTensor(const std::vector<int> size) {
     const int ndim = size.size();
 
     int num_param = 0;
@@ -26,11 +26,11 @@ TensorFact::CpTensor ProductOfIndicesCpTensor(const std::vector<int> size) {
         }
     }
 
-    return TensorFact::CpTensor(ndim, size, 1, param);
+    return tensorfact::CpTensor(ndim, size, 1, param);
 }
 
 TEST(CpTensor, ConstructFromFactor) {
-    const TensorFact::CpTensor cp_tensor =
+    const tensorfact::CpTensor cp_tensor =
         ProductOfIndicesCpTensor({2, 3, 4, 5});
 
     for (int l = 0; l < 5; ++l) {
@@ -47,13 +47,13 @@ TEST(CpTensor, ConstructFromFactor) {
 
 TEST(CpTensor, FileIO) {
     {
-        const TensorFact::CpTensor cp_tensor =
+        const tensorfact::CpTensor cp_tensor =
             ProductOfIndicesCpTensor({3, 2, 5, 4});
         cp_tensor.WriteToFile("cp_tensor.txt");
     }
 
     {
-        TensorFact::CpTensor cp_tensor;
+        tensorfact::CpTensor cp_tensor;
         cp_tensor.ReadFromFile("cp_tensor.txt");
 
         for (int l = 0; l < 4; ++l) {

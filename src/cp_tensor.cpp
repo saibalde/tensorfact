@@ -1,11 +1,11 @@
-#include "TensorFact_CpTensor.hpp"
+#include "tensorfact/cp_tensor.hpp"
 
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 
-TensorFact::CpTensor::CpTensor(int ndim, const std::vector<int> &size, int rank,
+tensorfact::CpTensor::CpTensor(int ndim, const std::vector<int> &size, int rank,
                                const std::vector<double> &param)
     : ndim_(ndim), size_(size), rank_(rank), offset_(ndim + 1), param_(param) {
     // validate inputs
@@ -41,7 +41,7 @@ TensorFact::CpTensor::CpTensor(int ndim, const std::vector<int> &size, int rank,
     }
 }
 
-double TensorFact::CpTensor::Entry(const std::vector<int> &index) const {
+double tensorfact::CpTensor::Entry(const std::vector<int> &index) const {
     if (index.size() != ndim_) {
         throw std::invalid_argument(
             "Size of index array does not match dimensionality");
@@ -68,7 +68,7 @@ double TensorFact::CpTensor::Entry(const std::vector<int> &index) const {
     return value;
 }
 
-void TensorFact::CpTensor::WriteToFile(const std::string &file_name) const {
+void tensorfact::CpTensor::WriteToFile(const std::string &file_name) const {
     std::ofstream file(file_name);
 
     file << "CP Tensor" << std::endl;
@@ -95,7 +95,7 @@ void TensorFact::CpTensor::WriteToFile(const std::string &file_name) const {
     file << std::defaultfloat;
 }
 
-void TensorFact::CpTensor::ReadFromFile(const std::string &file_name) {
+void tensorfact::CpTensor::ReadFromFile(const std::string &file_name) {
     std::ifstream file(file_name);
 
     {
@@ -147,6 +147,6 @@ void TensorFact::CpTensor::ReadFromFile(const std::string &file_name) {
     }
 }
 
-int TensorFact::CpTensor::LinearIndex(int i, int r, int d) const {
+int tensorfact::CpTensor::LinearIndex(int i, int r, int d) const {
     return offset_[d] + i + size_[d] * r;
 }

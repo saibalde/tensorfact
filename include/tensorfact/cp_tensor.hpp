@@ -1,4 +1,4 @@
-/// @file TensorFact_CpTensor.hpp
+/// @file cp_tensor.hpp
 
 #ifndef TENSORFACT_CPTENSOR_HPP
 #define TENSORFACT_CPTENSOR_HPP
@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace TensorFact {
+namespace tensorfact {
 
 /// @brief CP representation of a multidimensional tensor
 ///
@@ -56,6 +56,6 @@ private:
     std::vector<double> param_;
 };
 
-}  // namespace TensorFact
+}  // namespace tensorfact
 
 #endif

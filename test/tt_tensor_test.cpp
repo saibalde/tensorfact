@@ -1,10 +1,10 @@
-#include "TensorFact_TtTensor.hpp"
+#include "tensorfact/tt_tensor.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-TensorFact::TtTensor SumOfIndicesTtTensor(const std::vector<int> &size) {
+tensorfact::TtTensor SumOfIndicesTtTensor(const std::vector<int> &size) {
     const int ndim = size.size();
     std::vector<int> rank(ndim + 1);
     std::vector<int> offset(ndim + 1);
@@ -47,12 +47,12 @@ TensorFact::TtTensor SumOfIndicesTtTensor(const std::vector<int> &size) {
         }
     }
 
-    return TensorFact::TtTensor(ndim, size, rank, param);
+    return tensorfact::TtTensor(ndim, size, rank, param);
 }
 
 TEST(TtTensor, ConstructFromParamAndEntry) {
     const std::vector<int> size{5, 3, 6, 4};
-    TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
+    tensorfact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
 
     for (int l = 0; l < 4; ++l) {
         for (int k = 0; k < 6; ++k) {
@@ -69,12 +69,12 @@ TEST(TtTensor, ConstructFromParamAndEntry) {
 TEST(TtTensor, FileIO) {
     {
         const std::vector<int> size{5, 3, 6, 4};
-        const TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
+        const tensorfact::TtTensor tt_tensor = SumOfIndicesTtTensor(size);
         tt_tensor.WriteToFile("tt_tensor.txt");
     }
 
     {
-        TensorFact::TtTensor tt_tensor;
+        tensorfact::TtTensor tt_tensor;
         tt_tensor.ReadFromFile("tt_tensor.txt");
 
         for (int l = 0; l < 4; ++l) {
@@ -91,10 +91,10 @@ TEST(TtTensor, FileIO) {
 }
 
 TEST(TtTensor, Addition) {
-    TensorFact::TtTensor tt_tensor1 = 5.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
-    TensorFact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor1 = 5.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
 
-    TensorFact::TtTensor tt_tensor = tt_tensor1 + tt_tensor2;
+    tensorfact::TtTensor tt_tensor = tt_tensor1 + tt_tensor2;
 
     for (int l = 0; l < 4; ++l) {
         for (int k = 0; k < 6; ++k) {
@@ -109,8 +109,8 @@ TEST(TtTensor, Addition) {
 }
 
 TEST(TtTensor, ScalarMultiplication) {
-    TensorFact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
-    TensorFact::TtTensor tt_tensor2 = 2.0 * tt_tensor1;
+    tensorfact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor2 = 2.0 * tt_tensor1;
 
     for (int l = 0; l < 4; ++l) {
         for (int k = 0; k < 6; ++k) {
@@ -139,7 +139,7 @@ TEST(TtTensor, ComputeFromFull) {
 
     float relative_tolerance = 1.0e-15;
 
-    TensorFact::TtTensor tt_tensor;
+    tensorfact::TtTensor tt_tensor;
     tt_tensor.ComputeFromFull(size, array, relative_tolerance);
 
     ASSERT_EQ(tt_tensor.Rank(0), 1);
@@ -168,11 +168,11 @@ TEST(TtTensor, ComputeFromFull) {
 }
 
 TEST(TtTensor, Round) {
-    const TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
+    const tensorfact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
 
-    const TensorFact::TtTensor tt_tensor_1 = 2.0 * tt_tensor;
+    const tensorfact::TtTensor tt_tensor_1 = 2.0 * tt_tensor;
 
-    TensorFact::TtTensor tt_tensor_2 = tt_tensor + tt_tensor;
+    tensorfact::TtTensor tt_tensor_2 = tt_tensor + tt_tensor;
     tt_tensor_2.Round(1.0e-14);
 
     for (int l = 0; l < 4; ++l) {
@@ -192,10 +192,10 @@ TEST(TtTensor, Round) {
 }
 
 TEST(TtTensor, Concatenate) {
-    const TensorFact::TtTensor tt_tensor_1 = SumOfIndicesTtTensor({5, 3, 6, 4});
-    const TensorFact::TtTensor tt_tensor_2 = SumOfIndicesTtTensor({5, 7, 6, 4});
+    const tensorfact::TtTensor tt_tensor_1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    const tensorfact::TtTensor tt_tensor_2 = SumOfIndicesTtTensor({5, 7, 6, 4});
 
-    const TensorFact::TtTensor tt_tensor =
+    const tensorfact::TtTensor tt_tensor =
         tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-14);
 
     for (int l = 0; l < 4; ++l) {
@@ -217,8 +217,8 @@ TEST(TtTensor, Concatenate) {
 }
 
 TEST(TtTensor, DotProduct) {
-    TensorFact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
-    TensorFact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor1 = SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor2 = -2.0 * SumOfIndicesTtTensor({5, 3, 6, 4});
 
     double obtained_value = tt_tensor1.Dot(tt_tensor2);
 
@@ -238,7 +238,7 @@ TEST(TtTensor, DotProduct) {
 }
 
 TEST(TtTensor, FrobeniusNorm) {
-    TensorFact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
+    tensorfact::TtTensor tt_tensor = SumOfIndicesTtTensor({5, 3, 6, 4});
 
     float obtained_value = tt_tensor.FrobeniusNorm();
 

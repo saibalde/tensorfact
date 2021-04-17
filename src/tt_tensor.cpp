@@ -1,4 +1,4 @@
-#include "TensorFact_TtTensor.hpp"
+#include "tensorfact/tt_tensor.hpp"
 
 #include <blas.hh>
 #include <cmath>
@@ -11,7 +11,7 @@
 
 #include "utils.hpp"
 
-TensorFact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
+tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
                                const std::vector<int> &rank,
                                const std::vector<double> &param)
     : ndim_(ndim), size_(size), rank_(rank), offset_(ndim + 1), param_(param) {
@@ -56,7 +56,7 @@ TensorFact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
     }
 }
 
-double TensorFact::TtTensor::Entry(const std::vector<int> &index) const {
+double tensorfact::TtTensor::Entry(const std::vector<int> &index) const {
     auto temp = std::make_shared<std::vector<double>>();
 
     for (int d = ndim_ - 1; d >= 0; --d) {
@@ -83,7 +83,7 @@ double TensorFact::TtTensor::Entry(const std::vector<int> &index) const {
 
     return temp->at(0);
 }
-void TensorFact::TtTensor::WriteToFile(const std::string &file_name) const {
+void tensorfact::TtTensor::WriteToFile(const std::string &file_name) const {
     std::ofstream file(file_name);
 
     file << "TT Tensor" << std::endl;
@@ -114,7 +114,7 @@ void TensorFact::TtTensor::WriteToFile(const std::string &file_name) const {
     file << std::defaultfloat;
 }
 
-void TensorFact::TtTensor::ReadFromFile(const std::string &file_name) {
+void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
     std::ifstream file(file_name);
 
     {
@@ -169,7 +169,7 @@ void TensorFact::TtTensor::ReadFromFile(const std::string &file_name) {
     }
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::operator+(
+tensorfact::TtTensor tensorfact::TtTensor::operator+(
     const TtTensor &other) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument("TT tensors must have same dimensionality");
@@ -255,7 +255,7 @@ TensorFact::TtTensor TensorFact::TtTensor::operator+(
     return TtTensor(ndim_, size_, rank_new, param_new);
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::operator*(double alpha) const {
+tensorfact::TtTensor tensorfact::TtTensor::operator*(double alpha) const {
     std::vector<double> param_new(param_);
 
     for (int n = 0; n < offset_[1]; ++n) {
@@ -265,12 +265,12 @@ TensorFact::TtTensor TensorFact::TtTensor::operator*(double alpha) const {
     return TtTensor(ndim_, size_, rank_, param_new);
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::operator-(
-    const TensorFact::TtTensor &other) const {
+tensorfact::TtTensor tensorfact::TtTensor::operator-(
+    const tensorfact::TtTensor &other) const {
     return *this + other * (-1.0);
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::operator/(double alpha) const {
+tensorfact::TtTensor tensorfact::TtTensor::operator/(double alpha) const {
     if (std::abs(alpha) < std::numeric_limits<double>::epsilon()) {
         throw std::logic_error("Dividing by a value too close to zero");
     }
@@ -278,7 +278,7 @@ TensorFact::TtTensor TensorFact::TtTensor::operator/(double alpha) const {
     return *this * (1.0 / alpha);
 }
 
-void TensorFact::TtTensor::ComputeFromFull(const std::vector<int> &size,
+void tensorfact::TtTensor::ComputeFromFull(const std::vector<int> &size,
                                            const std::vector<double> &array,
                                            double relative_tolerance) {
     if (relative_tolerance <= std::numeric_limits<double>::epsilon()) {
@@ -339,7 +339,7 @@ void TensorFact::TtTensor::ComputeFromFull(const std::vector<int> &size,
     }
 }
 
-void TensorFact::TtTensor::Round(double relative_tolerance) {
+void tensorfact::TtTensor::Round(double relative_tolerance) {
     // create cores
     std::vector<std::vector<double>> core(ndim_);
     for (int d = 0; d < ndim_; ++d) {
@@ -432,8 +432,8 @@ void TensorFact::TtTensor::Round(double relative_tolerance) {
     }
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::Concatenate(
-    const TensorFact::TtTensor &other, int dim,
+tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
+    const tensorfact::TtTensor &other, int dim,
     double relative_tolerance) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
@@ -455,17 +455,17 @@ TensorFact::TtTensor TensorFact::TtTensor::Concatenate(
     const int size_1 = size_[dim];
     const int size_2 = other.size_[dim];
 
-    const TensorFact::TtTensor tensor_1 = this->AddZeroPaddingBack(dim, size_2);
-    const TensorFact::TtTensor tensor_2 =
+    const tensorfact::TtTensor tensor_1 = this->AddZeroPaddingBack(dim, size_2);
+    const tensorfact::TtTensor tensor_2 =
         other.AddZeroPaddingFront(dim, size_1);
 
-    TensorFact::TtTensor tensor = tensor_1 + tensor_2;
+    tensorfact::TtTensor tensor = tensor_1 + tensor_2;
     tensor.Round(relative_tolerance);
 
     return tensor;
 }
 
-double TensorFact::TtTensor::Dot(const TensorFact::TtTensor &other) const {
+double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
             "Two tensors must have the same dimensionality");
@@ -557,17 +557,17 @@ double TensorFact::TtTensor::Dot(const TensorFact::TtTensor &other) const {
     return temp1[0];
 }
 
-double TensorFact::TtTensor::FrobeniusNorm() const {
+double tensorfact::TtTensor::FrobeniusNorm() const {
     return std::sqrt(this->Dot(*this));
 }
 
-int TensorFact::TtTensor::LinearIndex(int i, int j, int k, int d) const {
+int tensorfact::TtTensor::LinearIndex(int i, int j, int k, int d) const {
     return i + rank_[d] * (j + size_[d] * k) + offset_[d];
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::AddZeroPaddingBack(int dim,
+tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(int dim,
                                                               int pad) const {
-    TensorFact::TtTensor tt_tensor;
+    tensorfact::TtTensor tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
 
@@ -605,9 +605,9 @@ TensorFact::TtTensor TensorFact::TtTensor::AddZeroPaddingBack(int dim,
     return tt_tensor;
 }
 
-TensorFact::TtTensor TensorFact::TtTensor::AddZeroPaddingFront(int dim,
+tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(int dim,
                                                                int pad) const {
-    TensorFact::TtTensor tt_tensor;
+    tensorfact::TtTensor tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
 

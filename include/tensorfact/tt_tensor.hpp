@@ -1,4 +1,4 @@
-/// @file TensorFact_TtTensor.hpp
+/// @file tt_tensor.hpp
 
 #ifndef TENSORFACT_TTTENSOR_HPP
 #define TENSORFACT_TTTENSOR_HPP
@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace TensorFact {
+namespace tensorfact {
 
 /// @brief TT representation of a multidimensional tensor
 ///
@@ -94,11 +94,11 @@ private:
     std::vector<double> param_;
 };
 
-}  // namespace TensorFact
+}  // namespace tensorfact
 
 /// Scalar multiplication
-inline TensorFact::TtTensor operator*(double alpha,
-                                      const TensorFact::TtTensor &tensor) {
+inline tensorfact::TtTensor operator*(double alpha,
+                                      const tensorfact::TtTensor &tensor) {
     return tensor * alpha;
 }
 
