@@ -27,20 +27,20 @@ public:
     TtTensor() = default;
 
     /// Construct a TT-tensor from the parameters
-    TtTensor(int ndim, const std::vector<int> &size,
-             const std::vector<int> &rank, const std::vector<double> &param);
+    TtTensor(long ndim, const std::vector<long> &size,
+             const std::vector<long> &rank, const std::vector<double> &param);
 
     /// Default destructor
     ~TtTensor() = default;
 
     /// TT-ranks of the TT-tensor
-    int Rank(int d) const { return rank_[d]; }
+    long Rank(long d) const { return rank_[d]; }
 
     /// Number of parameters
-    int NumParam() const { return offset_[ndim_]; }
+    long NumParam() const { return offset_[ndim_]; }
 
     /// Compute and return the entry of the TT-tensor at given index
-    double Entry(const std::vector<int> &index) const;
+    double Entry(const std::vector<long> &index) const;
 
     /// Write to file
     void WriteToFile(const std::string &file_name) const;
@@ -60,16 +60,11 @@ public:
     /// Scalar division
     TtTensor operator/(double alpha) const;
 
-    /// Compute from full tensor using TT-SVD
-    void ComputeFromFull(const std::vector<int> &size,
-                         const std::vector<double> &array,
-                         double relative_tolerance);
-
     /// Rounding
     void Round(double relative_tolerance);
 
     /// Concatenation
-    TtTensor Concatenate(const TtTensor &other, int dim, double rel_acc) const;
+    TtTensor Concatenate(const TtTensor &other, long dim, double rel_acc) const;
 
     /// Dot product
     double Dot(const TtTensor &other) const;
@@ -79,18 +74,18 @@ public:
 
 private:
     /// Linear index for unwrapping paramter vector
-    int LinearIndex(int i, int j, int k, int d) const;
+    long LinearIndex(long i, long j, long k, long d) const;
 
     /// Zero-padding to the back of a dimension
-    TtTensor AddZeroPaddingBack(int dim, int pad) const;
+    TtTensor AddZeroPaddingBack(long dim, long pad) const;
 
     /// Zero-padding to the front of a dimension
-    TtTensor AddZeroPaddingFront(int dim, int pad) const;
+    TtTensor AddZeroPaddingFront(long dim, long pad) const;
 
-    int ndim_;
-    std::vector<int> size_;
-    std::vector<int> rank_;
-    std::vector<int> offset_;
+    long ndim_;
+    std::vector<long> size_;
+    std::vector<long> rank_;
+    std::vector<long> offset_;
     std::vector<double> param_;
 };
 

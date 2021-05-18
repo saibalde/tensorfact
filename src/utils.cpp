@@ -5,7 +5,7 @@
 #include <lapack.hh>
 #include <stdexcept>
 
-void ThinRq(int m, int n, std::vector<double> &A, std::vector<double> &R,
+void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
             std::vector<double> &Q) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument("Matrix dimensions must be positive");
@@ -16,18 +16,18 @@ void ThinRq(int m, int n, std::vector<double> &A, std::vector<double> &R,
             "Matrix dimensions are incompatible with number of entries");
     }
 
-    const int k = std::min(m, n);
+    const long k = std::min(m, n);
 
     std::vector<double> tau(k);
 
-    const int status1 = lapack::gerqf(m, n, A.data(), m, tau.data());
+    const long status1 = lapack::gerqf(m, n, A.data(), m, tau.data());
     if (status1 != 0) {
         throw std::runtime_error("RQ factorization was not successful");
     }
 
     R.resize(m * k);
-    for (int j = 0; j < k; ++j) {
-        for (int i = 0; i < m; ++i) {
+    for (long j = 0; j < k; ++j) {
+        for (long i = 0; i < m; ++i) {
             if (i <= j + m - k) {
                 if (m < n) {
                     R[i + j * m] = A[i + (n - m + j) * m];
@@ -41,8 +41,8 @@ void ThinRq(int m, int n, std::vector<double> &A, std::vector<double> &R,
     }
 
     Q.resize(k * n);
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < k; ++i) {
+    for (long j = 0; j < n; ++j) {
+        for (long i = 0; i < k; ++i) {
             if (m < n) {
                 Q[i + j * k] = A[i + j * m];
             } else {
@@ -51,15 +51,15 @@ void ThinRq(int m, int n, std::vector<double> &A, std::vector<double> &R,
         }
     }
 
-    const int status2 = lapack::ungrq(k, n, k, Q.data(), k, tau.data());
+    const long status2 = lapack::ungrq(k, n, k, Q.data(), k, tau.data());
     if (status2 != 0) {
         throw std::runtime_error(
             "Q computation in RQ factorization was not successful");
     }
 }
 
-void TruncatedSvd(int m, int n, std::vector<double> &A, double tolerance,
-                  bool is_relative, int &r, std::vector<double> &U,
+void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
+                  bool is_relative, long &r, std::vector<double> &U,
                   std::vector<double> &s, std::vector<double> &Vt) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument("Matrix dimensions must be positive");
@@ -70,14 +70,14 @@ void TruncatedSvd(int m, int n, std::vector<double> &A, double tolerance,
             "Matrix dimensions are incompatible with number of entries");
     }
 
-    const int k = std::min(m, n);
+    const long k = std::min(m, n);
 
     std::vector<double> U_thin(m * k);
     std::vector<double> s_thin(k);
     std::vector<double> Vt_thin(k * n);
 
     {
-        const int status =
+        const long status =
             lapack::gesdd(lapack::Job::SomeVec, m, n, A.data(), m,
                           s_thin.data(), U_thin.data(), m, Vt_thin.data(), k);
 
@@ -88,7 +88,7 @@ void TruncatedSvd(int m, int n, std::vector<double> &A, double tolerance,
 
     double frobenius_max_error = 0.0;
     if (is_relative) {
-        for (int i = 0; i < k; ++i) {
+        for (long i = 0; i < k; ++i) {
             frobenius_max_error += std::pow(s_thin[i], 2.0);
         }
 
@@ -108,20 +108,20 @@ void TruncatedSvd(int m, int n, std::vector<double> &A, double tolerance,
     }
 
     U.resize(m * r);
-    for (int j = 0; j < r; ++j) {
-        for (int i = 0; i < m; ++i) {
+    for (long j = 0; j < r; ++j) {
+        for (long i = 0; i < m; ++i) {
             U[i + j * m] = U_thin[i + j * m];
         }
     }
 
     s.resize(r);
-    for (int i = 0; i < r; ++i) {
+    for (long i = 0; i < r; ++i) {
         s[i] = s_thin[i];
     }
 
     Vt.resize(r * n);
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < r; ++i) {
+    for (long j = 0; j < n; ++j) {
+        for (long i = 0; i < r; ++i) {
             Vt[i + j * r] = Vt_thin[i + j * k];
         }
     }

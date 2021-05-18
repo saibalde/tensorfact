@@ -7,7 +7,7 @@
 #include <random>
 #include <stdexcept>
 
-void CreateRandomMatrix(int m, int n, std::vector<double> &A) {
+void CreateRandomMatrix(long m, long n, std::vector<double> &A) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument(
             "Number of rows and columns must be positive");
@@ -19,12 +19,12 @@ void CreateRandomMatrix(int m, int n, std::vector<double> &A) {
     std::mt19937 generator(device());
     std::uniform_real_distribution<double> distribution(-1.0, 1.0);
 
-    for (int i = 0; i < m * n; ++i) {
+    for (long i = 0; i < m * n; ++i) {
         A[i] = distribution(generator);
     }
 }
 
-void ReducedRqTest(int m, int n) {
+void ReducedRqTest(long m, long n) {
     std::vector<double> A;
     CreateRandomMatrix(m, n, A);
 
@@ -34,21 +34,21 @@ void ReducedRqTest(int m, int n) {
     std::vector<double> Q;
     ThinRq(m, n, A, R, Q);
 
-    const int k = std::min(m, n);
+    const long k = std::min(m, n);
 
     ASSERT_EQ(R.size(), m * k);
     ASSERT_EQ(Q.size(), k * n);
 
-    for (int j = 0; j < k; ++j) {
-        for (int i = j + m - k + 1; i < m; ++i) {
+    for (long j = 0; j < k; ++j) {
+        for (long i = j + m - k + 1; i < m; ++i) {
             ASSERT_NEAR(R[i + j * m], 0.0, 1.0e-15);
         }
     }
 
-    for (int i1 = 0; i1 < k; ++i1) {
-        for (int i2 = 0; i2 < i1; ++i2) {
+    for (long i1 = 0; i1 < k; ++i1) {
+        for (long i2 = 0; i2 < i1; ++i2) {
             double dot_product = 0.0;
-            for (int j = 0; j < n; ++j) {
+            for (long j = 0; j < n; ++j) {
                 dot_product += Q[i1 + j * k] * Q[i2 + j * k];
             }
 
@@ -56,7 +56,7 @@ void ReducedRqTest(int m, int n) {
         }
 
         double norm_squared = 0.0;
-        for (int j = 0; j < n; ++j) {
+        for (long j = 0; j < n; ++j) {
             norm_squared += std::pow(Q[i1 + j * k], 2.0);
         }
 
@@ -68,8 +68,8 @@ void ReducedRqTest(int m, int n) {
                n, k, 1.0, R.data(), m, Q.data(), k, 0.0, B.data(), m);
 
     double frobenius_error = 0.0;
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < m; ++i) {
+    for (long j = 0; j < n; ++j) {
+        for (long i = 0; i < m; ++i) {
             frobenius_error += std::pow(B[i + j * m] - C[i + j * m], 2.0);
         }
     }
@@ -83,17 +83,17 @@ TEST(utils, ThinRq) {
     ReducedRqTest(64, 4);
 }
 
-void SvdFactorQualityTest(int m, int n, int r, const std::vector<double> &U,
+void SvdFactorQualityTest(long m, long n, long r, const std::vector<double> &U,
                           const std::vector<double> &s,
                           const std::vector<double> &Vt) {
     ASSERT_EQ(U.size(), m * r);
     ASSERT_EQ(s.size(), r);
     ASSERT_EQ(Vt.size(), r * n);
 
-    for (int j1 = 0; j1 < r; ++j1) {
-        for (int j2 = 0; j2 < j1; ++j2) {
+    for (long j1 = 0; j1 < r; ++j1) {
+        for (long j2 = 0; j2 < j1; ++j2) {
             double dot_product = 0.0;
-            for (int i = 0; i < m; ++i) {
+            for (long i = 0; i < m; ++i) {
                 dot_product += U[i + j1 * m] * U[i + j2 * m];
             }
 
@@ -101,14 +101,14 @@ void SvdFactorQualityTest(int m, int n, int r, const std::vector<double> &U,
         }
 
         double norm_squared = 0.0;
-        for (int i = 0; i < m; ++i) {
+        for (long i = 0; i < m; ++i) {
             norm_squared += std::pow(U[i + j1 * m], 2.0);
         }
 
         ASSERT_NEAR(norm_squared, 1.0, 1.0e-14);
     }
 
-    for (int i = 0; i < r; ++i) {
+    for (long i = 0; i < r; ++i) {
         if (i < r - 1) {
             ASSERT_GE(s[i], s[i + 1]);
         } else {
@@ -116,10 +116,10 @@ void SvdFactorQualityTest(int m, int n, int r, const std::vector<double> &U,
         }
     }
 
-    for (int i1 = 0; i1 < r; ++i1) {
-        for (int i2 = 0; i2 < i1; ++i2) {
+    for (long i1 = 0; i1 < r; ++i1) {
+        for (long i2 = 0; i2 < i1; ++i2) {
             double dot_product = 0.0;
-            for (int j = 0; j < n; ++j) {
+            for (long j = 0; j < n; ++j) {
                 dot_product += Vt[i1 + j * r] * Vt[i2 + j * r];
             }
 
@@ -127,7 +127,7 @@ void SvdFactorQualityTest(int m, int n, int r, const std::vector<double> &U,
         }
 
         double norm_squared = 0.0;
-        for (int j = 0; j < n; ++j) {
+        for (long j = 0; j < n; ++j) {
             norm_squared += std::pow(Vt[i1 + j * r], 2.0);
         }
 
@@ -135,7 +135,7 @@ void SvdFactorQualityTest(int m, int n, int r, const std::vector<double> &U,
     }
 }
 
-void TruncatedSvdTest(int m, int n, int r) {
+void TruncatedSvdTest(long m, long n, long r) {
     if (m < 1 || n < 1 || r < 1) {
         throw std::invalid_argument("Matrix sizes and rank must be positive");
     }
@@ -146,7 +146,7 @@ void TruncatedSvdTest(int m, int n, int r) {
 
     // Construct appropriate matrix
     std::vector<double> A(m * n);
-    int k;
+    long k;
     double absolute_tolerance;
     double relative_tolerance;
 
@@ -164,7 +164,7 @@ void TruncatedSvdTest(int m, int n, int r) {
         // Create s factor; s[i] ~ Uniform([2 * (r - 1 - i), 2 * (r - i)])
         std::vector<double> s;
         CreateRandomMatrix(r, 1, s);
-        for (int i = 0; i < r; ++i) {
+        for (long i = 0; i < r; ++i) {
             s[i] += 2 * (r - 1 - i) + 1;
         }
 
@@ -179,8 +179,8 @@ void TruncatedSvdTest(int m, int n, int r) {
         }
 
         // Compute A = Ut.conjugate() * diagmat(s) * Vt
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < r; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < r; ++i) {
                 Vt[i + j * r] *= s[i];
             }
         }
@@ -192,19 +192,19 @@ void TruncatedSvdTest(int m, int n, int r) {
         std::vector<double> absolute_error(r);
 
         absolute_error[r - 1] = 0.0;
-        for (int i = r - 1; i > 0; --i) {
+        for (long i = r - 1; i > 0; --i) {
             absolute_error[i - 1] = absolute_error[i] + std::pow(s[i], 2.0);
         }
         double frobenius_norm = absolute_error[0] + std::pow(s[0], 2.0);
 
-        for (int i = 0; i < r; ++i) {
+        for (long i = 0; i < r; ++i) {
             absolute_error[i] = std::sqrt(absolute_error[i]);
         }
         frobenius_norm = std::sqrt(frobenius_norm);
 
         std::vector<double> relative_error(r);
 
-        for (int i = 0; i < r; ++i) {
+        for (long i = 0; i < r; ++i) {
             relative_error[i] = absolute_error[i] / frobenius_norm;
         }
 
@@ -231,15 +231,15 @@ void TruncatedSvdTest(int m, int n, int r) {
         std::vector<double> U;
         std::vector<double> s;
         std::vector<double> Vt;
-        int r;
+        long r;
         TruncatedSvd(m, n, B, 0.0, false, r, U, s, Vt);
 
         ASSERT_EQ(r, std::min(m, n));
 
         SvdFactorQualityTest(m, n, r, U, s, Vt);
 
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < r; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < r; ++i) {
                 Vt[i + j * r] *= s[i];
             }
         }
@@ -249,8 +249,8 @@ void TruncatedSvdTest(int m, int n, int r) {
                    m, n, r, 1.0, U.data(), m, Vt.data(), r, 0.0, C.data(), m);
 
         double frobenius_error = 0.0;
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < m; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < m; ++i) {
                 frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2.0);
             }
         }
@@ -265,15 +265,15 @@ void TruncatedSvdTest(int m, int n, int r) {
         std::vector<double> U;
         std::vector<double> s;
         std::vector<double> Vt;
-        int r;
+        long r;
         TruncatedSvd(m, n, B, absolute_tolerance, false, r, U, s, Vt);
 
         ASSERT_EQ(r, k);
 
         SvdFactorQualityTest(m, n, r, U, s, Vt);
 
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < k; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < k; ++i) {
                 Vt[i + j * r] *= s[i];
             }
         }
@@ -283,8 +283,8 @@ void TruncatedSvdTest(int m, int n, int r) {
                    m, n, r, 1.0, U.data(), m, Vt.data(), r, 0.0, C.data(), m);
 
         double frobenius_error = 0.0;
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < m; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < m; ++i) {
                 frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2.0);
             }
         }
@@ -299,15 +299,15 @@ void TruncatedSvdTest(int m, int n, int r) {
         std::vector<double> U;
         std::vector<double> s;
         std::vector<double> Vt;
-        int r;
+        long r;
         TruncatedSvd(m, n, B, relative_tolerance, true, r, U, s, Vt);
 
         ASSERT_EQ(r, k);
 
         SvdFactorQualityTest(m, n, r, U, s, Vt);
 
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < k; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < k; ++i) {
                 Vt[i + j * r] *= s[i];
             }
         }
@@ -318,8 +318,8 @@ void TruncatedSvdTest(int m, int n, int r) {
 
         double frobenius_error = 0.0;
         double frobenius_norm = 0.0;
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < m; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < m; ++i) {
                 frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2.0);
                 frobenius_norm += std::pow(A[i + j * m], 2.0);
             }

@@ -11,8 +11,8 @@
 
 #include "utils.hpp"
 
-tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
-                               const std::vector<int> &rank,
+tensorfact::TtTensor::TtTensor(long ndim, const std::vector<long> &size,
+                               const std::vector<long> &rank,
                                const std::vector<double> &param)
     : ndim_(ndim), size_(size), rank_(rank), offset_(ndim + 1), param_(param) {
     if (ndim_ < 1) {
@@ -23,7 +23,7 @@ tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
         throw std::invalid_argument(
             "Length of the size vector is incompatible with dimension");
     }
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         if (size_[d] < 1) {
             throw std::invalid_argument(
                 "Entries of the size vector must be positive");
@@ -37,7 +37,7 @@ tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
     if (rank_[0] != 1 || rank_[ndim_] != 1) {
         throw std::invalid_argument("Boundary ranks must be one");
     }
-    for (int d = 1; d < ndim_; ++d) {
+    for (long d = 1; d < ndim_; ++d) {
         if (rank_[d] < 1) {
             throw std::invalid_argument(
                 "Entries of the rank vector must be positive");
@@ -45,7 +45,7 @@ tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
     }
 
     offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
 
@@ -56,15 +56,15 @@ tensorfact::TtTensor::TtTensor(int ndim, const std::vector<int> &size,
     }
 }
 
-double tensorfact::TtTensor::Entry(const std::vector<int> &index) const {
+double tensorfact::TtTensor::Entry(const std::vector<long> &index) const {
     auto temp = std::make_shared<std::vector<double>>();
 
-    for (int d = ndim_ - 1; d >= 0; --d) {
+    for (long d = ndim_ - 1; d >= 0; --d) {
         auto slice =
             std::make_shared<std::vector<double>>(rank_[d] * rank_[d + 1]);
 
-        for (int j = 0; j < rank_[d + 1]; ++j) {
-            for (int i = 0; i < rank_[d]; ++i) {
+        for (long j = 0; j < rank_[d + 1]; ++j) {
+            for (long i = 0; i < rank_[d]; ++i) {
                 slice->at(i + j * rank_[d]) =
                     param_[LinearIndex(i, index[d], j, d)];
             }
@@ -90,20 +90,20 @@ void tensorfact::TtTensor::WriteToFile(const std::string &file_name) const {
 
     file << ndim_ << std::endl;
 
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         file << size_[d] << std::endl;
     }
 
-    for (int d = 0; d <= ndim_; ++d) {
+    for (long d = 0; d <= ndim_; ++d) {
         file << rank_[d] << std::endl;
     }
 
     file << std::scientific;
 
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
                     file << std::setprecision(17)
                          << param_[LinearIndex(i, j, k, d)] << std::endl;
                 }
@@ -133,7 +133,7 @@ void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
     }
 
     size_.resize(ndim_);
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         std::string line;
         std::getline(file, line);
         std::istringstream line_stream(line);
@@ -141,7 +141,7 @@ void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
     }
 
     rank_.resize(ndim_ + 1);
-    for (int d = 0; d <= ndim_; ++d) {
+    for (long d = 0; d <= ndim_; ++d) {
         std::string line;
         std::getline(file, line);
         std::istringstream line_stream(line);
@@ -150,15 +150,15 @@ void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
 
     offset_.resize(ndim_ + 1);
     offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
 
     param_.resize(offset_[ndim_]);
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
                     std::string line;
                     std::getline(file, line);
                     std::istringstream line_stream(line);
@@ -175,24 +175,24 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
         throw std::invalid_argument("TT tensors must have same dimensionality");
     }
 
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         if (size_[d] != other.size_[d]) {
             throw std::invalid_argument("TT tensors must have same size");
         }
     }
 
     // new ranks
-    std::vector<int> rank_new(ndim_ + 1);
+    std::vector<long> rank_new(ndim_ + 1);
     rank_new[0] = 1;
-    for (int d = 1; d < ndim_; ++d) {
+    for (long d = 1; d < ndim_; ++d) {
         rank_new[d] = rank_[d] + other.rank_[d];
     }
     rank_new[ndim_] = 1;
 
     // new offsets
-    std::vector<int> offset_new(ndim_ + 1);
+    std::vector<long> offset_new(ndim_ + 1);
     offset_new[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         offset_new[d + 1] =
             offset_new[d] + rank_new[d] * size_[d] * rank_new[d + 1];
     }
@@ -201,34 +201,34 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
     std::vector<double> param_new(offset_new[ndim_]);
 
     // first core
-    for (int k = 0; k < rank_[1]; ++k) {
-        for (int j = 0; j < size_[0]; ++j) {
+    for (long k = 0; k < rank_[1]; ++k) {
+        for (long j = 0; j < size_[0]; ++j) {
             param_new[j + k * size_[0] + offset_new[0]] =
                 param_[LinearIndex(0, j, k, 0)];
         }
     }
 
-    for (int k = 0; k < other.rank_[1]; ++k) {
-        for (int j = 0; j < size_[0]; ++j) {
+    for (long k = 0; k < other.rank_[1]; ++k) {
+        for (long j = 0; j < size_[0]; ++j) {
             param_new[j + (k + rank_[1]) * size_[0] + offset_new[0]] =
                 other.param_[other.LinearIndex(0, j, k, 0)];
         }
     }
 
     // middle cores
-    for (int d = 1; d < ndim_ - 1; ++d) {
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
+    for (long d = 1; d < ndim_ - 1; ++d) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
                     param_new[i + j * rank_new[d] + k * rank_new[d] * size_[d] +
                               offset_new[d]] = param_[LinearIndex(i, j, k, d)];
                 }
             }
         }
 
-        for (int k = 0; k < other.rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < other.rank_[d]; ++i) {
+        for (long k = 0; k < other.rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < other.rank_[d]; ++i) {
                     param_new[i + rank_[d] + j * rank_new[d] +
                               (k + rank_[d + 1]) * rank_new[d] * size_[d] +
                               offset_new[d]] =
@@ -239,13 +239,13 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
     }
 
     // last core
-    for (int j = 0; j < size_[ndim_ - 1]; ++j) {
-        for (int i = 0; i < rank_[ndim_ - 1]; ++i) {
+    for (long j = 0; j < size_[ndim_ - 1]; ++j) {
+        for (long i = 0; i < rank_[ndim_ - 1]; ++i) {
             param_new[i + j * rank_new[ndim_ - 1] + offset_new[ndim_ - 1]] =
                 param_[LinearIndex(i, j, 0, ndim_ - 1)];
         }
 
-        for (int i = 0; i < other.rank_[ndim_ - 1]; ++i) {
+        for (long i = 0; i < other.rank_[ndim_ - 1]; ++i) {
             param_new[i + rank_[ndim_ - 1] + j * rank_new[ndim_ - 1] +
                       offset_new[ndim_ - 1]] =
                 other.param_[other.LinearIndex(i, j, 0, ndim_ - 1)];
@@ -258,7 +258,7 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
 tensorfact::TtTensor tensorfact::TtTensor::operator*(double alpha) const {
     std::vector<double> param_new(param_);
 
-    for (int n = 0; n < offset_[1]; ++n) {
+    for (long n = 0; n < offset_[1]; ++n) {
         param_new[n] *= alpha;
     }
 
@@ -278,75 +278,14 @@ tensorfact::TtTensor tensorfact::TtTensor::operator/(double alpha) const {
     return *this * (1.0 / alpha);
 }
 
-void tensorfact::TtTensor::ComputeFromFull(const std::vector<int> &size,
-                                           const std::vector<double> &array,
-                                           double relative_tolerance) {
-    if (relative_tolerance <= std::numeric_limits<double>::epsilon()) {
-        throw std::logic_error("Required accuracy is too small");
-    }
-
-    ndim_ = size.size();
-    size_ = size;
-    rank_.resize(ndim_ + 1);
-
-    const double delta = relative_tolerance / std::sqrt(ndim_ - 1);
-
-    // compute cores
-    rank_[0] = 1;
-
-    std::vector<std::vector<double>> core(ndim_);
-    core[ndim_ - 1] = array;
-
-    for (int d = 0; d < ndim_ - 1; ++d) {
-        const int m = rank_[d] * size_[d];
-        const int n = core[ndim_ - 1].size() / m;
-
-        int r;
-        std::vector<double> s;
-        std::vector<double> Vt;
-        TruncatedSvd(m, n, core[ndim_ - 1], delta, true, r, core[d], s, Vt);
-
-        core[ndim_ - 1].resize(r * n);
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < r; ++i) {
-                core[ndim_ - 1][i + j * r] = s[i] * Vt[i + j * r];
-            }
-        }
-
-        rank_[d + 1] = r;
-    }
-
-    rank_[ndim_] = 1;
-
-    // calculate offsets
-    offset_.resize(ndim_ + 1);
-    offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
-        offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
-    }
-
-    // combine cores
-    param_.resize(offset_[ndim_]);
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
-                    param_[LinearIndex(i, j, k, d)] =
-                        core[d][i + j * rank_[d] + k * rank_[d] * size_[d]];
-                }
-            }
-        }
-    }
-}
-
 void tensorfact::TtTensor::Round(double relative_tolerance) {
     // create cores
     std::vector<std::vector<double>> core(ndim_);
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         core[d].resize(rank_[d] * size_[d] * rank_[d + 1]);
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
                     core[d][i + j * rank_[d] + k * rank_[d] * size_[d]] =
                         param_[LinearIndex(i, j, k, d)];
                 }
@@ -355,10 +294,10 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
     }
 
     // right-to-left orthogonalization
-    for (int d = ndim_ - 1; d > 0; --d) {
-        const int m = rank_[d];
-        const int n = size_[d] * rank_[d + 1];
-        const int k = std::min(m, n);
+    for (long d = ndim_ - 1; d > 0; --d) {
+        const long m = rank_[d];
+        const long n = size_[d] * rank_[d + 1];
+        const long k = std::min(m, n);
 
         std::vector<double> R;
         std::vector<double> Q;
@@ -368,7 +307,7 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
 
         std::vector<double> temp = core[d - 1];
 
-        const int mm = rank_[d - 1] * size_[d - 1];
+        const long mm = rank_[d - 1] * size_[d - 1];
         core[d - 1].resize(mm * k);
         blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
                    mm, k, m, 1.0, temp.data(), mm, R.data(), m, 0.0,
@@ -381,27 +320,27 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
     if (relative_tolerance > 1.0e-15) {
         const double delta = relative_tolerance / std::sqrt(ndim_ - 1);
 
-        for (int d = 0; d < ndim_ - 1; ++d) {
-            const int m = rank_[d] * size_[d];
-            const int n = rank_[d + 1];
+        for (long d = 0; d < ndim_ - 1; ++d) {
+            const long m = rank_[d] * size_[d];
+            const long n = rank_[d + 1];
 
             std::vector<double> U;
             std::vector<double> s;
             std::vector<double> Vt;
-            int r;
+            long r;
             TruncatedSvd(m, n, core[d], delta, true, r, U, s, Vt);
 
             core[d] = U;
 
-            for (int j = 0; j < n; ++j) {
-                for (int i = 0; i < r; ++i) {
+            for (long j = 0; j < n; ++j) {
+                for (long i = 0; i < r; ++i) {
                     Vt[i + j * r] *= s[i];
                 }
             }
 
             std::vector<double> temp = core[d + 1];
 
-            const int nn = size_[d + 1] * rank_[d + 2];
+            const long nn = size_[d + 1] * rank_[d + 2];
             core[d + 1].resize(r * nn);
             blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
                        blas::Op::NoTrans, r, nn, n, 1.0, Vt.data(), r,
@@ -414,16 +353,16 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
     // recalculate offsets
     offset_.resize(ndim_ + 1);
     offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
 
     // combine cores
     param_.resize(offset_[ndim_]);
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < rank_[d + 1]; ++k) {
-            for (int j = 0; j < size_[d]; ++j) {
-                for (int i = 0; i < rank_[d]; ++i) {
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
                     param_[LinearIndex(i, j, k, d)] =
                         core[d][i + j * rank_[d] + k * rank_[d] * size_[d]];
                 }
@@ -433,7 +372,7 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
 }
 
 tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
-    const tensorfact::TtTensor &other, int dim,
+    const tensorfact::TtTensor &other, long dim,
     double relative_tolerance) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
@@ -444,7 +383,7 @@ tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
         throw std::invalid_argument("Invalid concatenation dimension");
     }
 
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         if (d != dim && size_[d] != other.size_[d]) {
             throw std::invalid_argument(
                 "Tensor sizes must match apart from the concatenation "
@@ -452,8 +391,8 @@ tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
         }
     }
 
-    const int size_1 = size_[dim];
-    const int size_2 = other.size_[dim];
+    const long size_1 = size_[dim];
+    const long size_2 = other.size_[dim];
 
     const tensorfact::TtTensor tensor_1 = this->AddZeroPaddingBack(dim, size_2);
     const tensorfact::TtTensor tensor_2 =
@@ -471,7 +410,7 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
             "Two tensors must have the same dimensionality");
     }
 
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         if (size_[d] != other.size_[d]) {
             throw std::invalid_argument("Two tensors must have the same size");
         }
@@ -479,12 +418,12 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
 
     std::vector<double> temp1;
 
-    for (int d = ndim_ - 1; d >= 0; --d) {
-        const int m = other.rank_[d];
-        const int mm = other.rank_[d + 1];
+    for (long d = ndim_ - 1; d >= 0; --d) {
+        const long m = other.rank_[d];
+        const long mm = other.rank_[d + 1];
 
-        const int n = rank_[d];
-        const int nn = rank_[d + 1];
+        const long n = rank_[d];
+        const long nn = rank_[d + 1];
 
         std::vector<double> other_slice(m * mm);
         std::vector<double> slice(n * nn);
@@ -493,16 +432,16 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
 
         if (d == ndim_ - 1) {
             // Kronecker product of the last cores
-            for (int k = 0; k < size_[d]; ++k) {
-                for (int j = 0; j < mm; ++j) {
-                    for (int i = 0; i < m; ++i) {
+            for (long k = 0; k < size_[d]; ++k) {
+                for (long j = 0; j < mm; ++j) {
+                    for (long i = 0; i < m; ++i) {
                         other_slice[i + m * j] =
                             other.param_[other.LinearIndex(i, k, j, d)];
                     }
                 }
 
-                for (int j = 0; j < nn; ++j) {
-                    for (int i = 0; i < n; ++i) {
+                for (long j = 0; j < nn; ++j) {
+                    for (long i = 0; i < n; ++i) {
                         slice[i + j * n] = param_[LinearIndex(i, k, j, d)];
                     }
                 }
@@ -514,16 +453,16 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
             }
         } else {
             // multiplication by Kronecker product of the cores
-            for (int k = 0; k < size_[d]; ++k) {
-                for (int j = 0; j < mm; ++j) {
-                    for (int i = 0; i < m; ++i) {
+            for (long k = 0; k < size_[d]; ++k) {
+                for (long j = 0; j < mm; ++j) {
+                    for (long i = 0; i < m; ++i) {
                         other_slice[i + m * j] =
                             other.param_[other.LinearIndex(i, k, j, d)];
                     }
                 }
 
-                for (int j = 0; j < nn; ++j) {
-                    for (int i = 0; i < n; ++i) {
+                for (long j = 0; j < nn; ++j) {
+                    for (long i = 0; i < n; ++i) {
                         slice[i + j * n] = param_[LinearIndex(i, k, j, d)];
                     }
                 }
@@ -542,10 +481,10 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
         }
 
         temp1.resize(m * n);
-        for (int j = 0; j < n; ++j) {
-            for (int i = 0; i < m; ++i) {
+        for (long j = 0; j < n; ++j) {
+            for (long i = 0; i < m; ++i) {
                 double sum = 0.0;
-                for (int k = 0; k < size_[d]; ++k) {
+                for (long k = 0; k < size_[d]; ++k) {
                     sum += temp2[k][i + j * m];
                 }
 
@@ -561,12 +500,12 @@ double tensorfact::TtTensor::FrobeniusNorm() const {
     return std::sqrt(this->Dot(*this));
 }
 
-int tensorfact::TtTensor::LinearIndex(int i, int j, int k, int d) const {
+long tensorfact::TtTensor::LinearIndex(long i, long j, long k, long d) const {
     return i + rank_[d] * (j + size_[d] * k) + offset_[d];
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(int dim,
-                                                              int pad) const {
+tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(long dim,
+                                                              long pad) const {
     tensorfact::TtTensor tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
@@ -578,17 +517,17 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(int dim,
 
     tt_tensor.offset_.resize(ndim_ + 1);
     tt_tensor.offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         tt_tensor.offset_[d + 1] =
             tt_tensor.offset_[d] +
             tt_tensor.rank_[d] * tt_tensor.size_[d] * tt_tensor.rank_[d + 1];
     }
 
     tt_tensor.param_.resize(tt_tensor.offset_[ndim_]);
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < tt_tensor.rank_[d + 1]; ++k) {
-            for (int j = 0; j < tt_tensor.size_[d]; ++j) {
-                for (int i = 0; i < tt_tensor.rank_[d]; ++i) {
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < tt_tensor.rank_[d + 1]; ++k) {
+            for (long j = 0; j < tt_tensor.size_[d]; ++j) {
+                for (long i = 0; i < tt_tensor.rank_[d]; ++i) {
                     if (d == dim) {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
                             (j < size_[d]) ? param_[LinearIndex(i, j, k, d)]
@@ -605,8 +544,8 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(int dim,
     return tt_tensor;
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(int dim,
-                                                               int pad) const {
+tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(long dim,
+                                                               long pad) const {
     tensorfact::TtTensor tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
@@ -618,17 +557,17 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(int dim,
 
     tt_tensor.offset_.resize(ndim_ + 1);
     tt_tensor.offset_[0] = 0;
-    for (int d = 0; d < ndim_; ++d) {
+    for (long d = 0; d < ndim_; ++d) {
         tt_tensor.offset_[d + 1] =
             tt_tensor.offset_[d] +
             tt_tensor.rank_[d] * tt_tensor.size_[d] * tt_tensor.rank_[d + 1];
     }
 
     tt_tensor.param_.resize(tt_tensor.offset_[ndim_]);
-    for (int d = 0; d < ndim_; ++d) {
-        for (int k = 0; k < tt_tensor.rank_[d + 1]; ++k) {
-            for (int j = 0; j < tt_tensor.size_[d]; ++j) {
-                for (int i = 0; i < tt_tensor.rank_[d]; ++i) {
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < tt_tensor.rank_[d + 1]; ++k) {
+            for (long j = 0; j < tt_tensor.size_[d]; ++j) {
+                for (long i = 0; i < tt_tensor.rank_[d]; ++i) {
                     if (d == dim) {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
                             (j < pad) ? 0.0

@@ -1,14 +1,8 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(TensorFact LANGUAGES CXX VERSION 0.1.0)
-
-set(CMAKE_PREFIX_PATH ${BLASPP_PREFIX_PATH}
-                      ${LAPACKPP_PREFIX_PATH}
-                      ${GTEST_PREFIX_PATH}
-                      ${CMAKE_PREFIX_PATH})
 
 find_package(blaspp REQUIRED)
 find_package(lapackpp REQUIRED)
-find_package(GTest)
 find_package(Doxygen)
 
 # main library
@@ -21,8 +15,9 @@ if(PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
     option(TensorFact_ENABLE_TESTS "Build package tests" ON)
 endif()
 
-if(TensorFact_ENABLE_TESTS AND GTest_FOUND)
+if(TensorFact_ENABLE_TESTS)
     enable_testing()
+    include(GoogleTest)
     add_subdirectory(test)
 endif()
 
