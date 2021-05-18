@@ -5,8 +5,9 @@
 #include <lapack.hh>
 #include <stdexcept>
 
-void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
-            std::vector<double> &Q) {
+template <class Real>
+void ThinRq(long m, long n, std::vector<Real> &A, std::vector<Real> &R,
+            std::vector<Real> &Q) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument("Matrix dimensions must be positive");
     }
@@ -18,7 +19,7 @@ void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
 
     const long k = std::min(m, n);
 
-    std::vector<double> tau(k);
+    std::vector<Real> tau(k);
 
     const long status1 = lapack::gerqf(m, n, A.data(), m, tau.data());
     if (status1 != 0) {
@@ -35,7 +36,7 @@ void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
                     R[i + j * m] = A[i + j * m];
                 }
             } else {
-                R[i + j * m] = 0.0;
+                R[i + j * m] = static_cast<Real>(0);
             }
         }
     }
@@ -58,9 +59,10 @@ void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
     }
 }
 
-void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
-                  bool is_relative, long &r, std::vector<double> &U,
-                  std::vector<double> &s, std::vector<double> &Vt) {
+template <class Real>
+void TruncatedSvd(long m, long n, std::vector<Real> &A, Real tolerance,
+                  bool is_relative, long &r, std::vector<Real> &U,
+                  std::vector<Real> &s, std::vector<Real> &Vt) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument("Matrix dimensions must be positive");
     }
@@ -72,9 +74,9 @@ void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
 
     const long k = std::min(m, n);
 
-    std::vector<double> U_thin(m * k);
-    std::vector<double> s_thin(k);
-    std::vector<double> Vt_thin(k * n);
+    std::vector<Real> U_thin(m * k);
+    std::vector<Real> s_thin(k);
+    std::vector<Real> Vt_thin(k * n);
 
     {
         const long status =
@@ -86,21 +88,21 @@ void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
         }
     }
 
-    double frobenius_max_error = 0.0;
+    Real frobenius_max_error = static_cast<Real>(0);
     if (is_relative) {
         for (long i = 0; i < k; ++i) {
-            frobenius_max_error += std::pow(s_thin[i], 2.0);
+            frobenius_max_error += std::pow(s_thin[i], 2);
         }
 
-        frobenius_max_error *= std::pow(tolerance, 2.0);
+        frobenius_max_error *= std::pow(tolerance, 2);
     } else {
-        frobenius_max_error = std::pow(tolerance, 2.0);
+        frobenius_max_error = std::pow(tolerance, 2);
     }
 
-    double frobenius_error = 0.0;
+    Real frobenius_error = static_cast<Real>(0);
     r = k;
     while (r > 0) {
-        frobenius_error += std::pow(s_thin[r - 1], 2.0);
+        frobenius_error += std::pow(s_thin[r - 1], 2);
         if (frobenius_error > frobenius_max_error) {
             break;
         }
@@ -126,3 +128,18 @@ void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
         }
     }
 }
+
+template void ThinRq<float>(long m, long n, std::vector<float> &A,
+                            std::vector<float> &R, std::vector<float> &Q);
+template void ThinRq<double>(long m, long n, std::vector<double> &A,
+                             std::vector<double> &R, std::vector<double> &Q);
+
+template void TruncatedSvd<float>(long m, long n, std::vector<float> &A,
+                                  float tolerance, bool is_relative, long &r,
+                                  std::vector<float> &U, std::vector<float> &s,
+                                  std::vector<float> &Vt);
+template void TruncatedSvd<double>(long m, long n, std::vector<double> &A,
+                                   double tolerance, bool is_relative, long &r,
+                                   std::vector<double> &U,
+                                   std::vector<double> &s,
+                                   std::vector<double> &Vt);

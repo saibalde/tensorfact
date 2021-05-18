@@ -21,6 +21,7 @@ namespace tensorfact {
 /// 1\f$. Assuming \f$n_k \sim n\f$ and \f$r_k \sim r\f$, this reduces the
 /// storage complexity \f$\mathcal{O}(n^d)\f$ of the full tensor to
 /// \f$\mathcal{O}(d n r^2)\f$ in the TT format.
+template <typename Real>
 class TtTensor {
 public:
     /// Default constructor
@@ -28,7 +29,7 @@ public:
 
     /// Construct a TT-tensor from the parameters
     TtTensor(long ndim, const std::vector<long> &size,
-             const std::vector<long> &rank, const std::vector<double> &param);
+             const std::vector<long> &rank, const std::vector<Real> &param);
 
     /// Default destructor
     ~TtTensor() = default;
@@ -40,7 +41,7 @@ public:
     long NumParam() const { return offset_[ndim_]; }
 
     /// Compute and return the entry of the TT-tensor at given index
-    double Entry(const std::vector<long> &index) const;
+    Real Entry(const std::vector<long> &index) const;
 
     /// Write to file
     void WriteToFile(const std::string &file_name) const;
@@ -49,52 +50,53 @@ public:
     void ReadFromFile(const std::string &file_name);
 
     /// Addition
-    TtTensor operator+(const TtTensor &other) const;
+    TtTensor<Real> operator+(const TtTensor<Real> &other) const;
 
     /// Subtraction
-    TtTensor operator-(const TtTensor &other) const;
+    TtTensor<Real> operator-(const TtTensor<Real> &other) const;
 
     /// Scalar multiplication
-    TtTensor operator*(double alpha) const;
+    TtTensor<Real> operator*(Real alpha) const;
 
     /// Scalar division
-    TtTensor operator/(double alpha) const;
+    TtTensor<Real> operator/(Real alpha) const;
 
     /// Rounding
-    void Round(double relative_tolerance);
+    void Round(Real relative_tolerance);
 
     /// Concatenation
-    TtTensor Concatenate(const TtTensor &other, long dim, double rel_acc) const;
+    TtTensor<Real> Concatenate(const TtTensor<Real> &other, long dim,
+                               Real relative_tolerance) const;
 
     /// Dot product
-    double Dot(const TtTensor &other) const;
+    Real Dot(const TtTensor<Real> &other) const;
 
     /// 2-norm
-    double FrobeniusNorm() const;
+    Real FrobeniusNorm() const;
 
 private:
     /// Linear index for unwrapping paramter vector
     long LinearIndex(long i, long j, long k, long d) const;
 
     /// Zero-padding to the back of a dimension
-    TtTensor AddZeroPaddingBack(long dim, long pad) const;
+    TtTensor<Real> AddZeroPaddingBack(long dim, long pad) const;
 
     /// Zero-padding to the front of a dimension
-    TtTensor AddZeroPaddingFront(long dim, long pad) const;
+    TtTensor<Real> AddZeroPaddingFront(long dim, long pad) const;
 
     long ndim_;
     std::vector<long> size_;
     std::vector<long> rank_;
     std::vector<long> offset_;
-    std::vector<double> param_;
+    std::vector<Real> param_;
 };
 
-}  // namespace tensorfact
-
 /// Scalar multiplication
-inline tensorfact::TtTensor operator*(double alpha,
-                                      const tensorfact::TtTensor &tensor) {
+template <typename Real>
+inline TtTensor<Real> operator*(Real alpha, const TtTensor<Real> &tensor) {
     return tensor * alpha;
 }
+
+}  // namespace tensorfact
 
 #endif

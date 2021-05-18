@@ -3,11 +3,13 @@
 
 #include <vector>
 
-void ThinRq(long m, long n, std::vector<double> &A, std::vector<double> &R,
-            std::vector<double> &Q);
+template <class Real>
+void ThinRq(long m, long n, std::vector<Real> &A, std::vector<Real> &R,
+            std::vector<Real> &Q);
 
-void TruncatedSvd(long m, long n, std::vector<double> &A, double tolerance,
-                  bool is_relative, long &r, std::vector<double> &U,
-                  std::vector<double> &s, std::vector<double> &Vt);
+template <class Real>
+void TruncatedSvd(long m, long n, std::vector<Real> &A, Real tolerance,
+                  bool is_relative, long &r, std::vector<Real> &U,
+                  std::vector<Real> &s, std::vector<Real> &Vt);
 
 #endif

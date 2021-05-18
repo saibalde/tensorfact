@@ -10,8 +10,9 @@
 namespace tensorfact {
 
 /// Compute TT factorization from full tensors using TT-SVD
-TtTensor TtSvd(const std::vector<long> &size, const std::vector<double> &array,
-               double relative_tolerance);
+template <typename Real>
+TtTensor<Real> TtSvd(const std::vector<long> &size,
+                     const std::vector<Real> &array, Real relative_tolerance);
 
 }  // namespace tensorfact
 

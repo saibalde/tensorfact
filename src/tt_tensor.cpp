@@ -11,9 +11,10 @@
 
 #include "utils.hpp"
 
-tensorfact::TtTensor::TtTensor(long ndim, const std::vector<long> &size,
-                               const std::vector<long> &rank,
-                               const std::vector<double> &param)
+template <typename Real>
+tensorfact::TtTensor<Real>::TtTensor(long ndim, const std::vector<long> &size,
+                                     const std::vector<long> &rank,
+                                     const std::vector<Real> &param)
     : ndim_(ndim), size_(size), rank_(rank), offset_(ndim + 1), param_(param) {
     if (ndim_ < 1) {
         throw std::invalid_argument("Dimension must be positive");
@@ -56,12 +57,13 @@ tensorfact::TtTensor::TtTensor(long ndim, const std::vector<long> &size,
     }
 }
 
-double tensorfact::TtTensor::Entry(const std::vector<long> &index) const {
-    auto temp = std::make_shared<std::vector<double>>();
+template <typename Real>
+Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
+    auto temp = std::make_shared<std::vector<Real>>();
 
     for (long d = ndim_ - 1; d >= 0; --d) {
         auto slice =
-            std::make_shared<std::vector<double>>(rank_[d] * rank_[d + 1]);
+            std::make_shared<std::vector<Real>>(rank_[d] * rank_[d + 1]);
 
         for (long j = 0; j < rank_[d + 1]; ++j) {
             for (long i = 0; i < rank_[d]; ++i) {
@@ -73,17 +75,21 @@ double tensorfact::TtTensor::Entry(const std::vector<long> &index) const {
         if (d == ndim_ - 1) {
             std::swap(temp, slice);
         } else {
-            auto temp_new = std::make_shared<std::vector<double>>(rank_[d]);
+            auto temp_new = std::make_shared<std::vector<Real>>(rank_[d]);
             blas::gemv(blas::Layout::ColMajor, blas::Op::NoTrans, rank_[d],
-                       rank_[d + 1], 1.0, slice->data(), rank_[d], temp->data(),
-                       1, 0.0, temp_new->data(), 1);
+                       rank_[d + 1], static_cast<Real>(1), slice->data(),
+                       rank_[d], temp->data(), 1, static_cast<Real>(0),
+                       temp_new->data(), 1);
             std::swap(temp, temp_new);
         }
     }
 
     return temp->at(0);
 }
-void tensorfact::TtTensor::WriteToFile(const std::string &file_name) const {
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::WriteToFile(
+    const std::string &file_name) const {
     std::ofstream file(file_name);
 
     file << "TT Tensor" << std::endl;
@@ -114,7 +120,8 @@ void tensorfact::TtTensor::WriteToFile(const std::string &file_name) const {
     file << std::defaultfloat;
 }
 
-void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
+template <typename Real>
+void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
     std::ifstream file(file_name);
 
     {
@@ -169,8 +176,9 @@ void tensorfact::TtTensor::ReadFromFile(const std::string &file_name) {
     }
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::operator+(
-    const TtTensor &other) const {
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
+    const TtTensor<Real> &other) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument("TT tensors must have same dimensionality");
     }
@@ -198,7 +206,7 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
     }
 
     // new parameters
-    std::vector<double> param_new(offset_new[ndim_]);
+    std::vector<Real> param_new(offset_new[ndim_], static_cast<Real>(0));
 
     // first core
     for (long k = 0; k < rank_[1]; ++k) {
@@ -255,8 +263,10 @@ tensorfact::TtTensor tensorfact::TtTensor::operator+(
     return TtTensor(ndim_, size_, rank_new, param_new);
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::operator*(double alpha) const {
-    std::vector<double> param_new(param_);
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
+    Real alpha) const {
+    std::vector<Real> param_new(param_);
 
     for (long n = 0; n < offset_[1]; ++n) {
         param_new[n] *= alpha;
@@ -265,22 +275,26 @@ tensorfact::TtTensor tensorfact::TtTensor::operator*(double alpha) const {
     return TtTensor(ndim_, size_, rank_, param_new);
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::operator-(
-    const tensorfact::TtTensor &other) const {
-    return *this + other * (-1.0);
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-(
+    const tensorfact::TtTensor<Real> &other) const {
+    return *this + other * static_cast<Real>(-1);
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::operator/(double alpha) const {
-    if (std::abs(alpha) < std::numeric_limits<double>::epsilon()) {
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/(
+    Real alpha) const {
+    if (std::abs(alpha) < std::numeric_limits<Real>::epsilon()) {
         throw std::logic_error("Dividing by a value too close to zero");
     }
 
-    return *this * (1.0 / alpha);
+    return *this * (static_cast<Real>(1) / alpha);
 }
 
-void tensorfact::TtTensor::Round(double relative_tolerance) {
+template <typename Real>
+void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
     // create cores
-    std::vector<std::vector<double>> core(ndim_);
+    std::vector<std::vector<Real>> core(ndim_);
     for (long d = 0; d < ndim_; ++d) {
         core[d].resize(rank_[d] * size_[d] * rank_[d + 1]);
         for (long k = 0; k < rank_[d + 1]; ++k) {
@@ -299,34 +313,35 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
         const long n = size_[d] * rank_[d + 1];
         const long k = std::min(m, n);
 
-        std::vector<double> R;
-        std::vector<double> Q;
+        std::vector<Real> R;
+        std::vector<Real> Q;
         ThinRq(m, n, core[d], R, Q);
 
         core[d] = Q;
 
-        std::vector<double> temp = core[d - 1];
+        std::vector<Real> temp = core[d - 1];
 
         const long mm = rank_[d - 1] * size_[d - 1];
         core[d - 1].resize(mm * k);
         blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-                   mm, k, m, 1.0, temp.data(), mm, R.data(), m, 0.0,
-                   core[d - 1].data(), mm);
+                   mm, k, m, static_cast<Real>(1), temp.data(), mm, R.data(), m,
+                   static_cast<Real>(0), core[d - 1].data(), mm);
 
         rank_[d] = k;
     }
 
     // left-to-right compression
-    if (relative_tolerance > 1.0e-15) {
-        const double delta = relative_tolerance / std::sqrt(ndim_ - 1);
+    if (relative_tolerance > std::numeric_limits<Real>::epsilon()) {
+        const Real delta =
+            relative_tolerance / std::sqrt(static_cast<Real>(ndim_ - 1));
 
         for (long d = 0; d < ndim_ - 1; ++d) {
             const long m = rank_[d] * size_[d];
             const long n = rank_[d + 1];
 
-            std::vector<double> U;
-            std::vector<double> s;
-            std::vector<double> Vt;
+            std::vector<Real> U;
+            std::vector<Real> s;
+            std::vector<Real> Vt;
             long r;
             TruncatedSvd(m, n, core[d], delta, true, r, U, s, Vt);
 
@@ -338,13 +353,14 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
                 }
             }
 
-            std::vector<double> temp = core[d + 1];
+            std::vector<Real> temp = core[d + 1];
 
             const long nn = size_[d + 1] * rank_[d + 2];
             core[d + 1].resize(r * nn);
             blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                       blas::Op::NoTrans, r, nn, n, 1.0, Vt.data(), r,
-                       temp.data(), n, 0.0, core[d + 1].data(), r);
+                       blas::Op::NoTrans, r, nn, n, static_cast<Real>(1),
+                       Vt.data(), r, temp.data(), n, static_cast<Real>(0),
+                       core[d + 1].data(), r);
 
             rank_[d + 1] = r;
         }
@@ -371,9 +387,10 @@ void tensorfact::TtTensor::Round(double relative_tolerance) {
     }
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
-    const tensorfact::TtTensor &other, long dim,
-    double relative_tolerance) const {
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Concatenate(
+    const tensorfact::TtTensor<Real> &other, long dim,
+    Real relative_tolerance) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
             "Dimensionality of the two tensors must be the same");
@@ -394,17 +411,20 @@ tensorfact::TtTensor tensorfact::TtTensor::Concatenate(
     const long size_1 = size_[dim];
     const long size_2 = other.size_[dim];
 
-    const tensorfact::TtTensor tensor_1 = this->AddZeroPaddingBack(dim, size_2);
-    const tensorfact::TtTensor tensor_2 =
+    const tensorfact::TtTensor<Real> tensor_1 =
+        this->AddZeroPaddingBack(dim, size_2);
+    const tensorfact::TtTensor<Real> tensor_2 =
         other.AddZeroPaddingFront(dim, size_1);
 
-    tensorfact::TtTensor tensor = tensor_1 + tensor_2;
+    tensorfact::TtTensor<Real> tensor = tensor_1 + tensor_2;
     tensor.Round(relative_tolerance);
 
     return tensor;
 }
 
-double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
+template <typename Real>
+Real tensorfact::TtTensor<Real>::Dot(
+    const tensorfact::TtTensor<Real> &other) const {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument(
             "Two tensors must have the same dimensionality");
@@ -416,7 +436,7 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
         }
     }
 
-    std::vector<double> temp1;
+    std::vector<Real> temp1;
 
     for (long d = ndim_ - 1; d >= 0; --d) {
         const long m = other.rank_[d];
@@ -425,10 +445,10 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
         const long n = rank_[d];
         const long nn = rank_[d + 1];
 
-        std::vector<double> other_slice(m * mm);
-        std::vector<double> slice(n * nn);
+        std::vector<Real> other_slice(m * mm);
+        std::vector<Real> slice(n * nn);
 
-        std::vector<std::vector<double>> temp2(size_[d]);
+        std::vector<std::vector<Real>> temp2(size_[d]);
 
         if (d == ndim_ - 1) {
             // Kronecker product of the last cores
@@ -448,8 +468,9 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
 
                 temp2[k].resize(m * n);
                 blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::Trans, m, n, mm, 1.0, other_slice.data(),
-                           m, slice.data(), n, 0.0, temp2[k].data(), m);
+                           blas::Op::Trans, m, n, mm, static_cast<Real>(1),
+                           other_slice.data(), m, slice.data(), n,
+                           static_cast<Real>(0), temp2[k].data(), m);
             }
         } else {
             // multiplication by Kronecker product of the cores
@@ -467,23 +488,24 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
                     }
                 }
 
-                std::vector<double> temp3(m * nn);
+                std::vector<Real> temp3(m * nn);
                 blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::NoTrans, m, nn, mm, 1.0,
-                           other_slice.data(), m, temp1.data(), mm, 0.0,
-                           temp3.data(), m);
+                           blas::Op::NoTrans, m, nn, mm, static_cast<Real>(1),
+                           other_slice.data(), m, temp1.data(), mm,
+                           static_cast<Real>(0), temp3.data(), m);
 
                 temp2[k].resize(m * n);
                 blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::Trans, m, n, nn, 1.0, temp3.data(), m,
-                           slice.data(), n, 0.0, temp2[k].data(), m);
+                           blas::Op::Trans, m, n, nn, static_cast<Real>(1),
+                           temp3.data(), m, slice.data(), n,
+                           static_cast<Real>(0), temp2[k].data(), m);
             }
         }
 
         temp1.resize(m * n);
         for (long j = 0; j < n; ++j) {
             for (long i = 0; i < m; ++i) {
-                double sum = 0.0;
+                Real sum = static_cast<Real>(0);
                 for (long k = 0; k < size_[d]; ++k) {
                     sum += temp2[k][i + j * m];
                 }
@@ -496,17 +518,21 @@ double tensorfact::TtTensor::Dot(const tensorfact::TtTensor &other) const {
     return temp1[0];
 }
 
-double tensorfact::TtTensor::FrobeniusNorm() const {
+template <typename Real>
+Real tensorfact::TtTensor<Real>::FrobeniusNorm() const {
     return std::sqrt(this->Dot(*this));
 }
 
-long tensorfact::TtTensor::LinearIndex(long i, long j, long k, long d) const {
+template <typename Real>
+long tensorfact::TtTensor<Real>::LinearIndex(long i, long j, long k,
+                                             long d) const {
     return i + rank_[d] * (j + size_[d] * k) + offset_[d];
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(long dim,
-                                                              long pad) const {
-    tensorfact::TtTensor tt_tensor;
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
+    long dim, long pad) const {
+    tensorfact::TtTensor<Real> tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
 
@@ -531,7 +557,7 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(long dim,
                     if (d == dim) {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
                             (j < size_[d]) ? param_[LinearIndex(i, j, k, d)]
-                                           : 0.0;
+                                           : static_cast<Real>(0);
                     } else {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
                             param_[LinearIndex(i, j, k, d)];
@@ -544,9 +570,10 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingBack(long dim,
     return tt_tensor;
 }
 
-tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(long dim,
-                                                               long pad) const {
-    tensorfact::TtTensor tt_tensor;
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
+    long dim, long pad) const {
+    tensorfact::TtTensor<Real> tt_tensor;
 
     tt_tensor.ndim_ = ndim_;
 
@@ -570,7 +597,7 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(long dim,
                 for (long i = 0; i < tt_tensor.rank_[d]; ++i) {
                     if (d == dim) {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
-                            (j < pad) ? 0.0
+                            (j < pad) ? static_cast<Real>(0)
                                       : param_[LinearIndex(i, j - pad, k, d)];
                     } else {
                         tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
@@ -583,3 +610,8 @@ tensorfact::TtTensor tensorfact::TtTensor::AddZeroPaddingFront(long dim,
 
     return tt_tensor;
 }
+
+// explicit instantiations
+
+template class tensorfact::TtTensor<float>;
+template class tensorfact::TtTensor<double>;

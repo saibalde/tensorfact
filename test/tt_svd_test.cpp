@@ -4,7 +4,8 @@
 
 #include <cmath>
 
-tensorfact::TtTensor SumOfIndicesTtTensor(const std::vector<long> &size) {
+template <typename Real>
+tensorfact::TtTensor<Real> SumOfIndicesTtTensor(const std::vector<long> &size) {
     const long ndim = size.size();
     std::vector<long> rank(ndim + 1);
     std::vector<long> offset(ndim + 1);
@@ -15,7 +16,7 @@ tensorfact::TtTensor SumOfIndicesTtTensor(const std::vector<long> &size) {
         rank[d + 1] = (d < ndim - 1) ? 2 : 1;
         offset[d + 1] = offset[d] + rank[d] * size[d] * rank[d + 1];
     }
-    std::vector<double> param(offset[ndim]);
+    std::vector<Real> param(offset[ndim]);
 
     for (long d = 0; d < ndim; ++d) {
         for (long i = 0; i < size[d]; ++i) {
@@ -24,22 +25,23 @@ tensorfact::TtTensor SumOfIndicesTtTensor(const std::vector<long> &size) {
                 param[i + offset[d]] = i;
 
                 // (0, i, 1, d) = 1
-                param[i + size[d] + offset[d]] = 1.0;
+                param[i + size[d] + offset[d]] = static_cast<Real>(1);
             } else if (d < ndim - 1) {
                 // (0, i, 0, d) = 1
-                param[2 * i + offset[d]] = 1.0;
+                param[2 * i + offset[d]] = static_cast<Real>(1);
 
                 // (1, i, 0, d) = i
                 param[1 + 2 * i + offset[d]] = i;
 
                 // (0, i, 1, d) = 0
-                param[2 * i + 2 * size[d] + offset[d]] = 0.0;
+                param[2 * i + 2 * size[d] + offset[d]] = static_cast<Real>(0);
 
                 // (1, i, 1, d) = 1
-                param[1 + 2 * i + 2 * size[d] + offset[d]] = 1.0;
+                param[1 + 2 * i + 2 * size[d] + offset[d]] =
+                    static_cast<Real>(1);
             } else {
                 // (0, i, 0, d) = 1
-                param[2 * i + offset[d]] = 1.0;
+                param[2 * i + offset[d]] = static_cast<Real>(1);
 
                 // (1, i, 0, d) = i
                 param[1 + 2 * i + offset[d]] = i;
@@ -47,7 +49,7 @@ tensorfact::TtTensor SumOfIndicesTtTensor(const std::vector<long> &size) {
         }
     }
 
-    return tensorfact::TtTensor(ndim, size, rank, param);
+    return tensorfact::TtTensor<Real>(ndim, size, rank, param);
 }
 
 TEST(TtSvd, TtSvd) {
@@ -65,8 +67,8 @@ TEST(TtSvd, TtSvd) {
 
     float relative_tolerance = 1.0e-15;
 
-    tensorfact::TtTensor tt_tensor =
-        tensorfact::TtSvd(size, array, relative_tolerance);
+    tensorfact::TtTensor<double> tt_tensor =
+        tensorfact::TtSvd<double>(size, array, relative_tolerance);
 
     ASSERT_EQ(tt_tensor.Rank(0), 1);
     ASSERT_EQ(tt_tensor.Rank(1), 2);

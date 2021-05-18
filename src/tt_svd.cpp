@@ -6,22 +6,24 @@
 
 #include "utils.hpp"
 
-tensorfact::TtTensor tensorfact::TtSvd(const std::vector<long> &size,
-                                       const std::vector<double> &array,
-                                       double relative_tolerance) {
-    if (relative_tolerance <= std::numeric_limits<double>::epsilon()) {
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtSvd(const std::vector<long> &size,
+                                             const std::vector<Real> &array,
+                                             Real relative_tolerance) {
+    if (relative_tolerance <= std::numeric_limits<Real>::epsilon()) {
         throw std::logic_error("Required accuracy is too small");
     }
 
     long ndim = size.size();
     std::vector<long> rank(ndim + 1);
 
-    const double delta = relative_tolerance / std::sqrt(ndim - 1);
+    const Real delta =
+        relative_tolerance / std::sqrt(static_cast<Real>(ndim - 1));
 
     // compute cores
     rank[0] = 1;
 
-    std::vector<std::vector<double>> core(ndim);
+    std::vector<std::vector<Real>> core(ndim);
     core[ndim - 1] = array;
 
     for (long d = 0; d < ndim - 1; ++d) {
@@ -29,9 +31,10 @@ tensorfact::TtTensor tensorfact::TtSvd(const std::vector<long> &size,
         const long n = core[ndim - 1].size() / m;
 
         long r;
-        std::vector<double> s;
-        std::vector<double> Vt;
-        TruncatedSvd(m, n, core[ndim - 1], delta, true, r, core[d], s, Vt);
+        std::vector<Real> s;
+        std::vector<Real> Vt;
+        TruncatedSvd<Real>(m, n, core[ndim - 1], delta, true, r, core[d], s,
+                           Vt);
 
         core[ndim - 1].resize(r * n);
         for (long j = 0; j < n; ++j) {
@@ -53,7 +56,7 @@ tensorfact::TtTensor tensorfact::TtSvd(const std::vector<long> &size,
     }
 
     // combine cores
-    std::vector<double> param(offset[ndim]);
+    std::vector<Real> param(offset[ndim]);
     for (long d = 0; d < ndim; ++d) {
         for (long k = 0; k < rank[d + 1]; ++k) {
             for (long j = 0; j < size[d]; ++j) {
@@ -66,5 +69,14 @@ tensorfact::TtTensor tensorfact::TtSvd(const std::vector<long> &size,
     }
 
     // create TT tensor object
-    return tensorfact::TtTensor(ndim, size, rank, param);
+    return tensorfact::TtTensor<Real>(ndim, size, rank, param);
 }
+
+// explicit instantiations
+
+template tensorfact::TtTensor<float> tensorfact::TtSvd(
+    const std::vector<long> &size, const std::vector<float> &array,
+    float relative_tolerance);
+template tensorfact::TtTensor<double> tensorfact::TtSvd(
+    const std::vector<long> &size, const std::vector<double> &array,
+    double relative_tolerance);
