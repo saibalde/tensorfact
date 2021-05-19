@@ -1,5 +1,7 @@
 #include "tensorfact/tt_tensor.hpp"
 
+#include <hdf5.h>
+
 #include <blas.hh>
 #include <cmath>
 #include <fstream>
@@ -90,69 +92,130 @@ Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
 template <typename Real>
 void tensorfact::TtTensor<Real>::WriteToFile(
     const std::string &file_name) const {
-    std::ofstream file(file_name);
+    hid_t file =
+        H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-    file << "TT Tensor" << std::endl;
+    {
+        hsize_t dims[1] = {ndim_};
+        hid_t data_space = H5Screate_simple(1, dims, NULL);
 
-    file << ndim_ << std::endl;
+        hid_t data_type = H5Tcopy(H5T_NATIVE_LONG);
+        H5Tset_order(data_type, H5T_ORDER_LE);
 
-    for (long d = 0; d < ndim_; ++d) {
-        file << size_[d] << std::endl;
+        hid_t data_set =
+            H5Dcreate(file, "tt_tensor_size", data_type, data_space,
+                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        H5Dwrite(data_set, H5T_NATIVE_LONG, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                 size_.data());
+
+        H5Dclose(data_set);
+        H5Tclose(data_type);
+        H5Sclose(data_space);
     }
 
-    for (long d = 0; d <= ndim_; ++d) {
-        file << rank_[d] << std::endl;
+    {
+        hsize_t dims[1] = {ndim_ + 1};
+        hid_t data_space = H5Screate_simple(1, dims, NULL);
+
+        hid_t data_type = H5Tcopy(H5T_NATIVE_LONG);
+        H5Tset_order(data_type, H5T_ORDER_LE);
+
+        hid_t data_set =
+            H5Dcreate(file, "tt_tensor_rank", data_type, data_space,
+                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        H5Dwrite(data_set, H5T_NATIVE_LONG, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                 rank_.data());
+
+        H5Dclose(data_set);
+        H5Tclose(data_type);
+        H5Sclose(data_space);
     }
 
-    file << std::scientific;
+    {
+        hsize_t dims[1] = {param_.size()};
+        hid_t data_space = H5Screate_simple(1, dims, NULL);
 
-    for (long d = 0; d < ndim_; ++d) {
-        for (long k = 0; k < rank_[d + 1]; ++k) {
-            for (long j = 0; j < size_[d]; ++j) {
-                for (long i = 0; i < rank_[d]; ++i) {
-                    file << std::setprecision(17)
-                         << param_[LinearIndex(i, j, k, d)] << std::endl;
-                }
-            }
+        hid_t data_type;
+        if (std::is_same<scalar_type, double>::value) {
+            data_type = H5Tcopy(H5T_NATIVE_DOUBLE);
+        } else if (std::is_same<scalar_type, float>::value) {
+            data_type = H5Tcopy(H5T_NATIVE_FLOAT);
         }
+        H5Tset_order(data_type, H5T_ORDER_LE);
+
+        hid_t data_set =
+            H5Dcreate(file, "tt_tensor_param", data_type, data_space,
+                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        if (std::is_same<scalar_type, double>::value) {
+            H5Dwrite(data_set, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                     param_.data());
+        } else if (std::is_same<scalar_type, float>::value) {
+            H5Dwrite(data_set, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                     param_.data());
+        }
+
+        H5Dclose(data_set);
+        H5Tclose(data_type);
+        H5Sclose(data_space);
     }
 
-    file << std::defaultfloat;
+    H5Fclose(file);
 }
 
 template <typename Real>
 void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
-    std::ifstream file(file_name);
+    hid_t file = H5Fopen(file_name.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
     {
-        std::string line;
-        std::getline(file, line);
-        if (line.compare("TT Tensor") != 0) {
-            throw std::runtime_error("File is missing TT tensor header");
+        hid_t data_set = H5Dopen(file, "tt_tensor_size", H5P_DEFAULT);
+        hid_t file_space = H5Dget_space(data_set);
+
+        if (H5Sget_simple_extent_ndims(file_space) != 1) {
+            throw std::runtime_error(
+                "tt_tensor_size dataset must be one dimensional");
         }
+
+        hsize_t dims[1];
+        H5Sget_simple_extent_dims(file_space, dims, NULL);
+
+        ndim_ = static_cast<long>(dims[0]);
+        size_.resize(ndim_);
+
+        hid_t mem_space = H5Screate_simple(1, dims, NULL);
+        H5Dread(data_set, H5T_NATIVE_LONG, mem_space, file_space, H5P_DEFAULT,
+                size_.data());
+
+        H5Sclose(mem_space);
+        H5Sclose(file_space);
+        H5Dclose(data_set);
     }
 
     {
-        std::string line;
-        std::getline(file, line);
-        std::istringstream line_stream(line);
-        line_stream >> ndim_;
-    }
+        hid_t data_set = H5Dopen(file, "tt_tensor_rank", H5P_DEFAULT);
+        hid_t file_space = H5Dget_space(data_set);
 
-    size_.resize(ndim_);
-    for (long d = 0; d < ndim_; ++d) {
-        std::string line;
-        std::getline(file, line);
-        std::istringstream line_stream(line);
-        line_stream >> size_[d];
-    }
+        if (H5Sget_simple_extent_ndims(file_space) != 1) {
+            throw std::runtime_error(
+                "tt_tensor_rank dataset must be one dimensional");
+        }
 
-    rank_.resize(ndim_ + 1);
-    for (long d = 0; d <= ndim_; ++d) {
-        std::string line;
-        std::getline(file, line);
-        std::istringstream line_stream(line);
-        line_stream >> rank_[d];
+        hsize_t dims[1];
+        H5Sget_simple_extent_dims(file_space, dims, NULL);
+
+        if (static_cast<long>(dims[0]) != ndim_ + 1) {
+            throw std::runtime_error(
+                "Mismatch in sizes of tt_tensor_size and tt_tensor_rank");
+        }
+
+        rank_.resize(ndim_ + 1);
+
+        hid_t mem_space = H5Screate_simple(1, dims, NULL);
+        H5Dread(data_set, H5T_NATIVE_LONG, mem_space, file_space, H5P_DEFAULT,
+                rank_.data());
+
+        H5Sclose(mem_space);
+        H5Sclose(file_space);
+        H5Dclose(data_set);
     }
 
     offset_.resize(ndim_ + 1);
@@ -161,19 +224,41 @@ void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
         offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
 
-    param_.resize(offset_[ndim_]);
-    for (long d = 0; d < ndim_; ++d) {
-        for (long k = 0; k < rank_[d + 1]; ++k) {
-            for (long j = 0; j < size_[d]; ++j) {
-                for (long i = 0; i < rank_[d]; ++i) {
-                    std::string line;
-                    std::getline(file, line);
-                    std::istringstream line_stream(line);
-                    line_stream >> param_[LinearIndex(i, j, k, d)];
-                }
-            }
+    {
+        hid_t data_set = H5Dopen(file, "tt_tensor_param", H5P_DEFAULT);
+        hid_t file_space = H5Dget_space(data_set);
+
+        if (H5Sget_simple_extent_ndims(file_space) != 1) {
+            throw std::runtime_error(
+                "tt_tensor_param dataset must be one dimensional");
         }
+
+        hsize_t dims[1];
+        H5Sget_simple_extent_dims(file_space, dims, NULL);
+
+        if (static_cast<long>(dims[0]) != offset_[ndim_]) {
+            throw std::runtime_error(
+                "Mismatch in sizes of tt_tensor_size, tt_tensor_rank and "
+                "tt_tensor_param");
+        }
+
+        param_.resize(offset_[ndim_]);
+
+        hid_t mem_space = H5Screate_simple(1, dims, NULL);
+        if (std::is_same<scalar_type, double>::value) {
+            H5Dread(data_set, H5T_NATIVE_DOUBLE, mem_space, file_space,
+                    H5P_DEFAULT, param_.data());
+        } else if (std::is_same<scalar_type, float>::value) {
+            H5Dread(data_set, H5T_NATIVE_FLOAT, mem_space, file_space,
+                    H5P_DEFAULT, param_.data());
+        }
+
+        H5Sclose(mem_space);
+        H5Sclose(file_space);
+        H5Dclose(data_set);
     }
+
+    H5Fclose(file);
 }
 
 template <typename Real>

@@ -24,6 +24,9 @@ namespace tensorfact {
 template <typename Real>
 class TtTensor {
 public:
+    /// Scalar type
+    typedef Real scalar_type;
+
     /// Default constructor
     TtTensor() = default;
 

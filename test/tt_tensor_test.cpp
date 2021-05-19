@@ -74,12 +74,12 @@ TEST(TtTensor, FileIO) {
         const std::vector<long> size{5, 3, 6, 4};
         const tensorfact::TtTensor<double> tt_tensor =
             SumOfIndicesTtTensor<double>(size);
-        tt_tensor.WriteToFile("tt_tensor.txt");
+        tt_tensor.WriteToFile("tt_tensor_double.h5");
     }
 
     {
         tensorfact::TtTensor<double> tt_tensor;
-        tt_tensor.ReadFromFile("tt_tensor.txt");
+        tt_tensor.ReadFromFile("tt_tensor_double.h5");
 
         for (long l = 0; l < 4; ++l) {
             for (long k = 0; k < 6; ++k) {
@@ -87,6 +87,29 @@ TEST(TtTensor, FileIO) {
                     for (long i = 0; i < 5; ++i) {
                         ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
                                     i + j + k + l, 1.0e-15);
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        const std::vector<long> size{5, 3, 6, 4};
+        const tensorfact::TtTensor<float> tt_tensor =
+            SumOfIndicesTtTensor<float>(size);
+        tt_tensor.WriteToFile("tt_tensor_float.h5");
+    }
+
+    {
+        tensorfact::TtTensor<float> tt_tensor;
+        tt_tensor.ReadFromFile("tt_tensor_float.h5");
+
+        for (long l = 0; l < 4; ++l) {
+            for (long k = 0; k < 6; ++k) {
+                for (long j = 0; j < 3; ++j) {
+                    for (long i = 0; i < 5; ++i) {
+                        ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                    i + j + k + l, 1.0e-06);
                     }
                 }
             }
