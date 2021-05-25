@@ -250,6 +250,23 @@ TEST(TtTensor, FrobeniusNorm) {
     ASSERT_TRUE(std::abs(obtained_value - expected_value) < 1.0e-15);
 }
 
+TEST(TtTensor, Full) {
+    tensorfact::TtTensor<float> tt_tensor =
+        SumOfIndicesTtTensor<float>({3, 5, 4, 6});
+    std::vector<float> tensor = tt_tensor.Full();
+
+    for (long l = 0; l < 6; ++l) {
+        for (long k = 0; k < 4; ++k) {
+            for (long j = 0; j < 5; ++j) {
+                for (long i = 0; i < 3; ++i) {
+                    ASSERT_NEAR(tensor[i + 3 * j + 15 * k + 60 * l],
+                                i + j + k + l, 1.0e-05);
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 

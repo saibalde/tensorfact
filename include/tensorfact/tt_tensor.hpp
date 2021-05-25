@@ -77,6 +77,9 @@ public:
     /// 2-norm
     Real FrobeniusNorm() const;
 
+    /// Convert to full
+    std::vector<Real> Full() const;
+
 private:
     /// Linear index for unwrapping paramter vector
     long LinearIndex(long i, long j, long k, long d) const;

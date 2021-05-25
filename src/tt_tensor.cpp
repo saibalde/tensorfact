@@ -609,6 +609,40 @@ Real tensorfact::TtTensor<Real>::FrobeniusNorm() const {
 }
 
 template <typename Real>
+std::vector<Real> tensorfact::TtTensor<Real>::Full() const {
+    std::vector<Real> full;
+
+    for (long d = 0; d < ndim_; ++d) {
+        long length = offset_[d + 1] - offset_[d];
+
+        if (d == 0) {
+            full.resize(length);
+            for (int n = 0; n < length; ++n) {
+                full[n] = param_[offset_[d] + n];
+            }
+        } else {
+            std::vector<Real> core(length);
+            for (int n = 0; n < length; ++n) {
+                core[n] = param_[offset_[d] + n];
+            }
+
+            const long m = full.size() / rank_[d];
+            const long n = size_[d] * rank_[d + 1];
+            const long k = rank_[d];
+
+            std::vector<Real> full_new(m * n);
+            blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
+                       blas::Op::NoTrans, m, n, k, 1, full.data(), m,
+                       core.data(), k, 0, full_new.data(), m);
+
+            full = std::move(full_new);
+        }
+    }
+
+    return full;
+}
+
+template <typename Real>
 long tensorfact::TtTensor<Real>::LinearIndex(long i, long j, long k,
                                              long d) const {
     return i + rank_[d] * (j + size_[d] * k) + offset_[d];
