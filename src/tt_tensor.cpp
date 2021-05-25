@@ -107,7 +107,7 @@ void tensorfact::TtTensor<Real>::WriteToFile(
         H5Fcreate(file_name.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
     {
-        hsize_t dims[1] = {ndim_};
+        hsize_t dims[1] = {static_cast<hsize_t>(ndim_)};
         hid_t data_space = H5Screate_simple(1, dims, NULL);
 
         hid_t data_type = H5Tcopy(H5T_NATIVE_LONG);
@@ -125,7 +125,7 @@ void tensorfact::TtTensor<Real>::WriteToFile(
     }
 
     {
-        hsize_t dims[1] = {ndim_ + 1};
+        hsize_t dims[1] = {static_cast<hsize_t>(ndim_ + 1)};
         hid_t data_space = H5Screate_simple(1, dims, NULL);
 
         hid_t data_type = H5Tcopy(H5T_NATIVE_LONG);
