@@ -60,6 +60,17 @@ tensorfact::TtTensor<Real>::TtTensor(long ndim, const std::vector<long> &size,
 }
 
 template <typename Real>
+long tensorfact::TtTensor<Real>::NumElement() const {
+    long num_element = 1;
+
+    for (long d = 0; d < ndim_; ++d) {
+        num_element *= size_[d];
+    }
+
+    return num_element;
+}
+
+template <typename Real>
 Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
     auto temp = std::make_shared<std::vector<Real>>();
 

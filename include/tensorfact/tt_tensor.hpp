@@ -37,8 +37,17 @@ public:
     /// Default destructor
     ~TtTensor() = default;
 
+    /// Number of dimensions
+    long NumDim() const { return ndim_; }
+
+    /// Mode size
+    long Size(long d) const { return size_[d]; }
+
     /// TT-ranks of the TT-tensor
     long Rank(long d) const { return rank_[d]; }
+
+    /// Number of elements
+    long NumElement() const;
 
     /// Number of parameters
     long NumParam() const { return offset_[ndim_]; }
