@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(TensorFact VERSION 0.2.0)
 
+# dependencies
+
 find_package(blaspp REQUIRED)
 find_package(lapackpp REQUIRED)
-find_package(HDF5 REQUIRED)
-if(HDF5_IS_PARALLEL)
-    find_package(MPI REQUIRED)
-endif()
 
 find_package(Doxygen)
 

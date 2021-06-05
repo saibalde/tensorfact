@@ -70,11 +70,12 @@ TEST(TtSvd, TtSvd) {
     tensorfact::TtTensor<double> tt_tensor =
         tensorfact::TtSvd<double>(size, array, relative_tolerance);
 
-    ASSERT_EQ(tt_tensor.Rank(0), 1);
-    ASSERT_EQ(tt_tensor.Rank(1), 2);
-    ASSERT_EQ(tt_tensor.Rank(2), 2);
-    ASSERT_EQ(tt_tensor.Rank(3), 2);
-    ASSERT_EQ(tt_tensor.Rank(4), 1);
+    const auto &rank = tt_tensor.Rank();
+    ASSERT_EQ(rank[0], 1);
+    ASSERT_EQ(rank[1], 2);
+    ASSERT_EQ(rank[2], 2);
+    ASSERT_EQ(rank[3], 2);
+    ASSERT_EQ(rank[4], 1);
 
     double frobenius_norm = 0.0;
     double absolute_error = 0.0;

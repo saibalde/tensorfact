@@ -1,4 +1,4 @@
-add_subdirectory("${CMAKE_SOURCE_DIR}/extern/googletest" "extern/googletest")
+add_subdirectory("${PROJECT_SOURCE_DIR}/extern/googletest" "extern/googletest")
 
 mark_as_advanced(
     BUILD_GTEST
@@ -19,7 +19,7 @@ set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
 macro(TensorFact_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN})
-    target_include_directories(${TESTNAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(${TESTNAME} PRIVATE tensorfact blaspp gtest)
     gtest_discover_tests(${TESTNAME}
         WORKING_DIRECTORY ${PROJECT_DIR}

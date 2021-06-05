@@ -24,9 +24,6 @@ namespace tensorfact {
 template <typename Real>
 class TtTensor {
 public:
-    /// Scalar type
-    typedef Real scalar_type;
-
     /// Default constructor
     TtTensor() = default;
 
@@ -37,29 +34,35 @@ public:
     /// Default destructor
     ~TtTensor() = default;
 
+    /// Default copy constructor
+    TtTensor(const TtTensor<Real> &) = default;
+
+    /// Default copy assignment
+    TtTensor<Real> &operator=(const TtTensor<Real> &) = default;
+
+    /// Default move constructor
+    TtTensor(TtTensor<Real> &&) = default;
+
+    /// Default move assignment
+    TtTensor<Real> &operator=(TtTensor<Real> &&) = default;
+
     /// Number of dimensions
-    long NumDim() const { return ndim_; }
+    const long &NumDim() const { return ndim_; }
 
-    /// Mode size
-    long Size(long d) const { return size_[d]; }
+    /// Mode sizes
+    const std::vector<long> &Size() const { return size_; }
 
-    /// TT-ranks of the TT-tensor
-    long Rank(long d) const { return rank_[d]; }
-
-    /// Number of elements
+    /// Number of elements in full tensor
     long NumElement() const;
 
+    /// TT-ranks
+    const std::vector<long> &Rank() const { return rank_; }
+
     /// Number of parameters
-    long NumParam() const { return offset_[ndim_]; }
+    const long &NumParam() const { return offset_[ndim_]; }
 
-    /// Compute and return the entry of the TT-tensor at given index
-    Real Entry(const std::vector<long> &index) const;
-
-    /// Write to file
-    void WriteToFile(const std::string &file_name) const;
-
-    /// Read from file
-    void ReadFromFile(const std::string &file_name);
+    /// Parameters
+    const std::vector<Real> &Param() const { return param_; }
 
     /// Addition
     TtTensor<Real> operator+(const TtTensor<Real> &other) const;
@@ -73,6 +76,12 @@ public:
     /// Scalar division
     TtTensor<Real> operator/(Real alpha) const;
 
+    /// Dot product
+    Real Dot(const TtTensor<Real> &other) const;
+
+    /// 2-norm
+    Real FrobeniusNorm() const;
+
     /// Rounding
     void Round(Real relative_tolerance);
 
@@ -80,11 +89,8 @@ public:
     TtTensor<Real> Concatenate(const TtTensor<Real> &other, long dim,
                                Real relative_tolerance) const;
 
-    /// Dot product
-    Real Dot(const TtTensor<Real> &other) const;
-
-    /// 2-norm
-    Real FrobeniusNorm() const;
+    /// Compute and return the entry of the TT-tensor at given index
+    Real Entry(const std::vector<long> &index) const;
 
     /// Convert to full
     std::vector<Real> Full() const;
