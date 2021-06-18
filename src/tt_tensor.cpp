@@ -69,8 +69,8 @@ long tensorfact::TtTensor<Real>::NumElement() const {
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
-    const TtTensor<Real> &other) const {
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
+    const TtTensor<Real> &other) {
     if (ndim_ != other.ndim_) {
         throw std::invalid_argument("TT tensors must have same dimensionality");
     }
@@ -81,47 +81,44 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
         }
     }
 
-    // new ranks
-    std::vector<long> rank_new(ndim_ + 1);
-    rank_new[0] = 1;
+    // copy current object
+    tensorfact::TtTensor<Real> self(*this);
+
+    // update ranks
     for (long d = 1; d < ndim_; ++d) {
-        rank_new[d] = rank_[d] + other.rank_[d];
+        rank_[d] = self.rank_[d] + other.rank_[d];
     }
-    rank_new[ndim_] = 1;
 
-    // new offsets
-    std::vector<long> offset_new(ndim_ + 1);
-    offset_new[0] = 0;
+    // update offsets
     for (long d = 0; d < ndim_; ++d) {
-        offset_new[d + 1] =
-            offset_new[d] + rank_new[d] * size_[d] * rank_new[d + 1];
+        offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
 
-    // new parameters
-    std::vector<Real> param_new(offset_new[ndim_], static_cast<Real>(0));
+    // create new parameters
+    param_.resize(offset_[ndim_]);
+    for (auto &p : param_) {
+        p = 0;
+    }
 
     // first core
-    for (long k = 0; k < rank_[1]; ++k) {
+    for (long k = 0; k < self.rank_[1]; ++k) {
         for (long j = 0; j < size_[0]; ++j) {
-            param_new[j + k * size_[0] + offset_new[0]] =
-                param_[LinearIndex(0, j, k, 0)];
+            Param(0, j, k, 0) = self.Param(0, j, k, 0);
         }
     }
 
     for (long k = 0; k < other.rank_[1]; ++k) {
         for (long j = 0; j < size_[0]; ++j) {
-            param_new[j + (k + rank_[1]) * size_[0] + offset_new[0]] =
-                other.param_[other.LinearIndex(0, j, k, 0)];
+            Param(0, j, k + self.rank_[1], 0) = other.Param(0, j, k, 0);
         }
     }
 
     // middle cores
     for (long d = 1; d < ndim_ - 1; ++d) {
-        for (long k = 0; k < rank_[d + 1]; ++k) {
+        for (long k = 0; k < self.rank_[d + 1]; ++k) {
             for (long j = 0; j < size_[d]; ++j) {
-                for (long i = 0; i < rank_[d]; ++i) {
-                    param_new[i + j * rank_new[d] + k * rank_new[d] * size_[d] +
-                              offset_new[d]] = param_[LinearIndex(i, j, k, d)];
+                for (long i = 0; i < self.rank_[d]; ++i) {
+                    Param(i, j, k, d) = self.Param(i, j, k, d);
                 }
             }
         }
@@ -129,10 +126,8 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
         for (long k = 0; k < other.rank_[d + 1]; ++k) {
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < other.rank_[d]; ++i) {
-                    param_new[i + rank_[d] + j * rank_new[d] +
-                              (k + rank_[d + 1]) * rank_new[d] * size_[d] +
-                              offset_new[d]] =
-                        other.param_[other.LinearIndex(i, j, k, d)];
+                    Param(i + self.rank_[d], j, k + self.rank_[d + 1], d) =
+                        other.Param(i, j, k, d);
                 }
             }
         }
@@ -140,47 +135,162 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
 
     // last core
     for (long j = 0; j < size_[ndim_ - 1]; ++j) {
-        for (long i = 0; i < rank_[ndim_ - 1]; ++i) {
-            param_new[i + j * rank_new[ndim_ - 1] + offset_new[ndim_ - 1]] =
-                param_[LinearIndex(i, j, 0, ndim_ - 1)];
+        for (long i = 0; i < self.rank_[ndim_ - 1]; ++i) {
+            Param(i, j, 0, ndim_ - 1) = self.Param(i, j, 0, ndim_ - 1);
         }
 
         for (long i = 0; i < other.rank_[ndim_ - 1]; ++i) {
-            param_new[i + rank_[ndim_ - 1] + j * rank_new[ndim_ - 1] +
-                      offset_new[ndim_ - 1]] =
-                other.param_[other.LinearIndex(i, j, 0, ndim_ - 1)];
+            Param(i + self.rank_[ndim_ - 1], j, 0, ndim_ - 1) =
+                other.Param(i, j, 0, ndim_ - 1);
         }
     }
 
-    return TtTensor(ndim_, size_, rank_new, param_new);
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-=(
+    const tensorfact::TtTensor<Real> &other) {
+    *this += other * static_cast<Real>(-1);
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(Real alpha) {
+    for (long k = 0; k < rank_[1]; ++k) {
+        for (long j = 0; j < size_[0]; ++j) {
+            Param(0, j, k, 0) *= alpha;
+        }
+    }
+
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/=(Real alpha) {
+    if (std::abs(alpha) < std::numeric_limits<Real>::epsilon()) {
+        throw std::logic_error("Dividing by a value too close to zero");
+    }
+
+    *this *= 1 / alpha;
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(
+    const TtTensor<Real> &other) {
+    if (ndim_ != other.ndim_) {
+        throw std::invalid_argument("TT tensors must have same dimensionality");
+    }
+
+    for (long d = 0; d < ndim_; ++d) {
+        if (size_[d] != other.size_[d]) {
+            throw std::invalid_argument("TT tensors must have same size");
+        }
+    }
+
+    // copy current object
+    tensorfact::TtTensor<Real> self(*this);
+
+    // update ranks
+    for (long d = 0; d <= ndim_; ++d) {
+        rank_[d] = self.rank_[d] * other.rank_[d];
+    }
+
+    // update offsets
+    for (long d = 0; d < ndim_; ++d) {
+        offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
+    }
+
+    // create new parameters
+    param_.resize(offset_[ndim_]);
+
+    // compute cores
+    for (long d = 0; d < ndim_; ++d) {
+        for (long k = 0; k < rank_[d + 1]; ++k) {
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
+                    const long i1 = i / other.rank_[d];
+                    const long i2 = i % other.rank_[d];
+
+                    const long k1 = k / other.rank_[d + 1];
+                    const long k2 = k % other.rank_[d + 1];
+
+                    Param(i, j, k, d) =
+                        self.Param(i1, j, k1, d) * other.Param(i2, j, k2, d);
+                }
+            }
+        }
+    }
+
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
+    const tensorfact::TtTensor<Real> &other) const {
+    tensorfact::TtTensor<Real> self(*this);
+    self += other;
+    return self;
 }
 
 template <typename Real>
 tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-(
     const tensorfact::TtTensor<Real> &other) const {
-    return *this + other * static_cast<Real>(-1);
+    tensorfact::TtTensor<Real> self(*this);
+    self -= other;
+    return self;
 }
 
 template <typename Real>
 tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
     Real alpha) const {
-    std::vector<Real> param_new(param_);
-
-    for (long n = 0; n < offset_[1]; ++n) {
-        param_new[n] *= alpha;
-    }
-
-    return TtTensor(ndim_, size_, rank_, param_new);
+    tensorfact::TtTensor<Real> self(*this);
+    self *= alpha;
+    return self;
 }
 
 template <typename Real>
 tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/(
     Real alpha) const {
-    if (std::abs(alpha) < std::numeric_limits<Real>::epsilon()) {
-        throw std::logic_error("Dividing by a value too close to zero");
+    tensorfact::TtTensor<Real> self(*this);
+    self /= alpha;
+    return self;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
+    const TtTensor<Real> &other) const {
+    tensorfact::TtTensor<Real> self(*this);
+    self *= other;
+    return self;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Shift(long d,
+                                                             long shift) const {
+    if (d < 0 || d >= ndim_) {
+        throw std::invalid_argument("Specified dimension is invalid");
     }
 
-    return *this * (static_cast<Real>(1) / alpha);
+    tensorfact::TtTensor<Real> self(*this);
+
+    for (long k = 0; k < rank_[d + 1]; ++k) {
+        for (long j = 0; j < size_[d]; ++j) {
+            for (long i = 0; i < rank_[d]; ++i) {
+                if (shift >= 0) {
+                    self.Param(i, j, k, d) = (j < size_[d] - shift)
+                                                 ? Param(i, j + shift, k, d)
+                                                 : 0.0;
+                } else {
+                    self.Param(i, j, k, d) =
+                        (j >= -shift) ? Param(i, j + shift, k, d) : 0.0;
+                }
+            }
+        }
+    }
+
+    return self;
 }
 
 template <typename Real>
@@ -216,14 +326,13 @@ Real tensorfact::TtTensor<Real>::Dot(
             for (long k = 0; k < size_[d]; ++k) {
                 for (long j = 0; j < mm; ++j) {
                     for (long i = 0; i < m; ++i) {
-                        other_slice[i + m * j] =
-                            other.param_[other.LinearIndex(i, k, j, d)];
+                        other_slice[i + m * j] = other.Param(i, k, j, d);
                     }
                 }
 
                 for (long j = 0; j < nn; ++j) {
                     for (long i = 0; i < n; ++i) {
-                        slice[i + j * n] = param_[LinearIndex(i, k, j, d)];
+                        slice[i + j * n] = Param(i, k, j, d);
                     }
                 }
 
@@ -238,14 +347,13 @@ Real tensorfact::TtTensor<Real>::Dot(
             for (long k = 0; k < size_[d]; ++k) {
                 for (long j = 0; j < mm; ++j) {
                     for (long i = 0; i < m; ++i) {
-                        other_slice[i + m * j] =
-                            other.param_[other.LinearIndex(i, k, j, d)];
+                        other_slice[i + m * j] = other.Param(i, k, j, d);
                     }
                 }
 
                 for (long j = 0; j < nn; ++j) {
                     for (long i = 0; i < n; ++i) {
-                        slice[i + j * n] = param_[LinearIndex(i, k, j, d)];
+                        slice[i + j * n] = Param(i, k, j, d);
                     }
                 }
 
@@ -294,7 +402,7 @@ void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < rank_[d]; ++i) {
                     core[d][i + j * rank_[d] + k * rank_[d] * size_[d]] =
-                        param_[LinearIndex(i, j, k, d)];
+                        Param(i, j, k, d);
                 }
             }
         }
@@ -372,7 +480,7 @@ void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
         for (long k = 0; k < rank_[d + 1]; ++k) {
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < rank_[d]; ++i) {
-                    param_[LinearIndex(i, j, k, d)] =
+                    Param(i, j, k, d) =
                         core[d][i + j * rank_[d] + k * rank_[d] * size_[d]];
                 }
             }
@@ -425,8 +533,7 @@ Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
 
         for (long j = 0; j < rank_[d + 1]; ++j) {
             for (long i = 0; i < rank_[d]; ++i) {
-                slice->at(i + j * rank_[d]) =
-                    param_[LinearIndex(i, index[d], j, d)];
+                slice->at(i + j * rank_[d]) = Param(i, index[d], j, d);
             }
         }
 
@@ -480,12 +587,6 @@ std::vector<Real> tensorfact::TtTensor<Real>::Full() const {
 }
 
 template <typename Real>
-long tensorfact::TtTensor<Real>::LinearIndex(long i, long j, long k,
-                                             long d) const {
-    return i + rank_[d] * (j + size_[d] * k) + offset_[d];
-}
-
-template <typename Real>
 tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
     long dim, long pad) const {
     tensorfact::TtTensor<Real> tt_tensor;
@@ -511,12 +612,10 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
             for (long j = 0; j < tt_tensor.size_[d]; ++j) {
                 for (long i = 0; i < tt_tensor.rank_[d]; ++i) {
                     if (d == dim) {
-                        tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
-                            (j < size_[d]) ? param_[LinearIndex(i, j, k, d)]
-                                           : static_cast<Real>(0);
+                        tt_tensor.Param(i, j, k, d) =
+                            (j < size_[d]) ? Param(i, j, k, d) : 0;
                     } else {
-                        tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
-                            param_[LinearIndex(i, j, k, d)];
+                        tt_tensor.Param(i, j, k, d) = Param(i, j, k, d);
                     }
                 }
             }
@@ -552,12 +651,10 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
             for (long j = 0; j < tt_tensor.size_[d]; ++j) {
                 for (long i = 0; i < tt_tensor.rank_[d]; ++i) {
                     if (d == dim) {
-                        tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
-                            (j < pad) ? static_cast<Real>(0)
-                                      : param_[LinearIndex(i, j - pad, k, d)];
+                        tt_tensor.Param(i, j, k, d) =
+                            (j < pad) ? 0 : Param(i, j - pad, k, d);
                     } else {
-                        tt_tensor.param_[tt_tensor.LinearIndex(i, j, k, d)] =
-                            param_[LinearIndex(i, j, k, d)];
+                        tt_tensor.Param(i, j, k, d) = Param(i, j, k, d);
                     }
                 }
             }

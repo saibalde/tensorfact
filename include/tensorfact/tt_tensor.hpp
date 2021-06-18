@@ -64,6 +64,31 @@ public:
     /// Parameters
     const std::vector<Real> &Param() const { return param_; }
 
+    /// Parameter
+    const Real &Param(long i, long j, long k, long d) const {
+        return param_[LinearIndex(i, j, k, d)];
+    }
+
+    /// Parameter
+    Real &Param(long i, long j, long k, long d) {
+        return param_[LinearIndex(i, j, k, d)];
+    }
+
+    /// In-place addition
+    TtTensor<Real> operator+=(const TtTensor<Real> &other);
+
+    /// In-place subtraction
+    TtTensor<Real> operator-=(const TtTensor<Real> &other);
+
+    /// In-place scalar multiplication
+    TtTensor<Real> operator*=(Real alpha);
+
+    /// In-place scalar division
+    TtTensor<Real> operator/=(Real alpha);
+
+    /// In-place elementwise multiplication
+    TtTensor<Real> operator*=(const TtTensor<Real> &other);
+
     /// Addition
     TtTensor<Real> operator+(const TtTensor<Real> &other) const;
 
@@ -75,6 +100,12 @@ public:
 
     /// Scalar division
     TtTensor<Real> operator/(Real alpha) const;
+
+    /// Elementwise multiplication
+    TtTensor<Real> operator*(const TtTensor<Real> &other) const;
+
+    /// Shift
+    TtTensor<Real> Shift(long site, long shift) const;
 
     /// Dot product
     Real Dot(const TtTensor<Real> &other) const;
@@ -97,7 +128,9 @@ public:
 
 private:
     /// Linear index for unwrapping paramter vector
-    long LinearIndex(long i, long j, long k, long d) const;
+    long LinearIndex(long i, long j, long k, long d) const {
+        return i + rank_[d] * (j + size_[d] * k) + offset_[d];
+    }
 
     /// Zero-padding to the back of a dimension
     TtTensor<Real> AddZeroPaddingBack(long dim, long pad) const;

@@ -106,6 +106,23 @@ TEST(TtTensor, ScalarMultiplication) {
     }
 }
 
+TEST(TtTensor, ElementwiseMultiplication) {
+    tensorfact::TtTensor<double> tt_tensor1 =
+        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    tensorfact::TtTensor<double> tt_tensor2 = tt_tensor1 * tt_tensor1;
+
+    for (long l = 0; l < 4; ++l) {
+        for (long k = 0; k < 6; ++k) {
+            for (long j = 0; j < 3; ++j) {
+                for (long i = 0; i < 5; ++i) {
+                    ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}),
+                                std::pow(i + j + k + l, 2), 1.0e-15);
+                }
+            }
+        }
+    }
+}
+
 TEST(TtTensor, Dot) {
     tensorfact::TtTensor<float> tt_tensor1 =
         SumOfIndicesTtTensor<float>({5, 3, 6, 4});
