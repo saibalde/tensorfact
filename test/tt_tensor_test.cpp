@@ -238,6 +238,30 @@ TEST(TtTensor, Full) {
     }
 }
 
+TEST(TtTensor, TextIO) {
+    {
+        tensorfact::TtTensor<double> tt_tensor =
+            SumOfIndicesTtTensor<double>({4, 3, 6, 5});
+        tt_tensor.WriteToFile("tt_tensor.txt");
+    }
+
+    {
+        tensorfact::TtTensor<double> tt_tensor;
+        tt_tensor.ReadFromFile("tt_tensor.txt");
+
+        for (long l = 0; l < 5; ++l) {
+            for (long k = 0; k < 6; ++k) {
+                for (long j = 0; j < 3; ++j) {
+                    for (long i = 0; i < 4; ++i) {
+                        ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
+                                    i + j + k + l, 1.0e-15);
+                    }
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
 
