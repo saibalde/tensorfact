@@ -420,6 +420,55 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Shift(long d,
 }
 
 template <typename Real>
+Real tensorfact::TtTensor<Real>::Contract(
+    const std::vector<std::vector<Real>> &vectors) const {
+    if (vectors.size() != num_dim_) {
+        throw std::invalid_argument(
+            "Number of vectors must match the dimensionality of the tensor");
+    }
+
+    for (long d = 0; d < num_dim_; ++d) {
+        if (vectors[d].size() != size_[d]) {
+            throw std::invalid_argument(
+                "Size of the vector must match the corresponding tensor mode "
+                "size");
+        }
+    }
+
+    std::shared_ptr<std::vector<Real>> temp1 = nullptr;
+
+    for (long d = num_dim_ - 1; d >= 0; --d) {
+        if (d == num_dim_ - 1) {
+            temp1 = std::make_shared<std::vector<Real>>(rank_[d], 0);
+
+            for (long j = 0; j < size_[d]; ++j) {
+                for (long i = 0; i < rank_[d]; ++i) {
+                    temp1->at(i) += Param(i, j, 0, d) * vectors[d][j];
+                }
+            }
+        } else {
+            std::vector<Real> slice(rank_[d] * rank_[d + 1], 0);
+            for (long k = 0; k < rank_[d + 1]; ++k) {
+                for (long j = 0; j < size_[d]; ++j) {
+                    for (long i = 0; i < rank_[d]; ++i) {
+                        slice[i + rank_[d] * k] +=
+                            Param(i, j, k, d) * vectors[d][j];
+                    }
+                }
+            }
+
+            auto temp2 = std::make_shared<std::vector<Real>>(rank_[d]);
+            blas::gemv(blas::Layout::ColMajor, blas::Op::NoTrans, rank_[d],
+                       rank_[d + 1], 1, slice.data(), rank_[d], temp1->data(),
+                       1, 0, temp2->data(), 1);
+            std::swap(temp1, temp2);
+        }
+    }
+
+    return temp1->at(0);
+}
+
+template <typename Real>
 Real tensorfact::TtTensor<Real>::Dot(
     const tensorfact::TtTensor<Real> &other) const {
     if (num_dim_ != other.num_dim_) {

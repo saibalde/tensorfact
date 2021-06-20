@@ -275,6 +275,32 @@ TEST(TtTensor, Shift) {
     }
 }
 
+TEST(TtTensor, Contract) {
+    std::vector<long> size{3, 5, 6, 4};
+
+    tensorfact::TtTensor<double> tt_tensor = IndexSumTensor<double>(size);
+
+    double expected_value = 0.0;
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    expected_value += tt_tensor.Entry({i, j, k, l});
+                }
+            }
+        }
+    }
+
+    std::vector<std::vector<double>> vectors(4);
+    for (long d = 0; d < 4; ++d) {
+        vectors[d] = std::vector<double>(size[d], 1.0);
+    }
+
+    double computed_value = tt_tensor.Contract(vectors);
+
+    EXPECT_NEAR(expected_value, computed_value, 1.0e-15);
+}
+
 TEST(TtTensor, Dot) {
     std::vector<long> size{5, 3, 6, 4};
 

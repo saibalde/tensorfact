@@ -331,6 +331,25 @@ public:
 
     ///@{
 
+    /// @brief Contraction
+    ///
+    /// Contraction of this tensor \f$\mathcal{X}\f$ with vectors \f$\{v_0,
+    /// \ldots, v_{d - 1}\}\f$, computing the quantity
+    /// \f[
+    /// \alpha = \sum_{i_0 = 0}^{n_0 - 1} \cdots
+    /// \sum_{i_{d - 1} = 0}^{n_{d - 1} - 1} \mathcal{X}(i_0, \cdots, i_{d - 1})
+    /// v_0(i_0) \cdots v_{d - 1}(i_{d - 1})
+    /// \f]
+    ///
+    /// @param [in] vectors The vectors \f$\{v_0, \ldots, v_{d - 1}\}\f$
+    ///
+    /// @return Contraction value \f$\alpha\f$
+    Real Contract(const std::vector<std::vector<Real>> &vectors) const;
+
+    ///@}
+
+    ///@{
+
     /// @brief Dot product
     ///
     /// Dot product of this tensor \f$\mathcal{X}\f$ and other tensor
