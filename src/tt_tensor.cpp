@@ -12,127 +12,141 @@
 #include "thin_rq.hpp"
 #include "truncated_svd.hpp"
 
-template <typename Real>
-tensorfact::TtTensor<Real>::TtTensor(long num_dim, long size, long rank)
-    : num_dim_(num_dim),
-      size_(num_dim),
-      rank_(num_dim + 1),
-      offset_(num_dim + 1),
-      param_() {
-    if (num_dim_ < 1) {
-        throw std::invalid_argument("Dimension must be positive");
-    }
-
-    if (size < 1) {
-        throw std::invalid_argument(
-            "Entries of the size vector must be positive");
-    }
-
-    if (rank < 1) {
-        throw std::invalid_argument(
-            "Entries of the rank vector must be positive");
-    }
-
-    for (long d = 0; d < num_dim_; ++d) {
-        size_[d] = size;
-    }
-
-    rank_[0] = 1;
-    for (long d = 1; d < num_dim_; ++d) {
-        rank_[d] = rank;
-    }
-    rank_[num_dim_] = 1;
-
-    offset_[0] = 0;
-    for (long d = 0; d < num_dim_; ++d) {
-        offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
-    }
-
-    param_.resize(offset_[num_dim_]);
-}
+// implementation
 
 template <typename Real>
-tensorfact::TtTensor<Real>::TtTensor(long num_dim,
-                                     const std::vector<long> &size,
-                                     const std::vector<long> &rank)
-    : num_dim_(num_dim),
-      size_(size),
-      rank_(rank),
-      offset_(num_dim + 1),
-      param_() {
-    if (num_dim_ < 1) {
-        throw std::invalid_argument("Dimension must be positive");
+class tensorfact::TtTensor<Real>::Impl {
+public:
+    Impl() = default;
+
+    Impl(long num_dim, const std::vector<long> &size,
+         const std::vector<long> &rank, const std::vector<Real> &param);
+
+    Impl(const Impl &) = default;
+
+    Impl(Impl &&) = default;
+
+    ~Impl() = default;
+
+    Impl &operator=(const Impl &) = default;
+
+    Impl &operator=(Impl &&) = default;
+
+    const long &NumDim() const { return num_dim_; }
+
+    const std::vector<long> &Size() const { return size_; }
+
+    const std::vector<long> &Rank() const { return rank_; }
+
+    const std::vector<Real> &Param() const { return param_; }
+
+    std::vector<Real> &Param() { return param_; }
+
+    const Real &Param(long i, long j, long k, long d) const {
+        return param_[LinearIndex(i, j, k, d)];
     }
 
-    if (size_.size() != num_dim_) {
-        throw std::invalid_argument(
-            "Length of the size vector is incompatible with dimension");
-    }
-    for (long d = 0; d < num_dim_; ++d) {
-        if (size_[d] < 1) {
-            throw std::invalid_argument(
-                "Entries of the size vector must be positive");
-        }
+    Real &Param(long i, long j, long k, long d) {
+        return param_[LinearIndex(i, j, k, d)];
     }
 
-    if (rank_.size() != num_dim_ + 1) {
-        throw std::invalid_argument(
-            "Length of the rank vector is incompatible with dimension");
-    }
-    if (rank_[0] != 1 || rank_[num_dim_] != 1) {
-        throw std::invalid_argument("Boundary ranks must be one");
-    }
-    for (long d = 1; d < num_dim_; ++d) {
-        if (rank_[d] < 1) {
-            throw std::invalid_argument(
-                "Entries of the rank vector must be positive");
-        }
+    const long &NumParam() const { return offset_[num_dim_]; }
+
+    long NumElement() const;
+
+    Impl operator+=(const Impl &other);
+
+    Impl operator-=(const Impl &other);
+
+    Impl operator*=(Real alpha);
+
+    Impl operator/=(Real alpha);
+
+    Impl operator*=(const Impl &other);
+
+    Impl operator+(const Impl &other) const;
+
+    Impl operator-(const Impl &other) const;
+
+    Impl operator*(Real alpha) const;
+
+    Impl operator/(Real alpha) const;
+
+    Impl operator*(const Impl &other) const;
+
+    Impl Concatenate(const Impl &other, long d) const;
+
+    Impl Shift(long d, long shift) const;
+
+    Real Contract(const std::vector<std::vector<Real>> &vectors) const;
+
+    Real Dot(const Impl &other) const;
+
+    Real FrobeniusNorm() const;
+
+    void Round(Real relative_tolerance);
+
+    std::vector<Real> Full() const;
+
+    Real Entry(const std::vector<long> &index) const;
+
+    void WriteToFile(const std::string &file_name) const;
+
+    void ReadFromFile(const std::string &file_name);
+
+private:
+    long LinearIndex(long i, long j, long k, long d) const {
+        return i + rank_[d] * (j + size_[d] * k) + offset_[d];
     }
 
-    offset_[0] = 0;
-    for (long d = 0; d < num_dim_; ++d) {
-        offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
-    }
+    Impl AddZeroPaddingBack(long dim, long pad) const;
 
-    param_.resize(offset_[num_dim_]);
-}
+    Impl AddZeroPaddingFront(long dim, long pad) const;
+
+    long num_dim_;
+    std::vector<long> size_;
+    std::vector<long> rank_;
+    std::vector<long> offset_;
+    std::vector<Real> param_;
+};
 
 template <typename Real>
-tensorfact::TtTensor<Real>::TtTensor(long num_dim,
-                                     const std::vector<long> &size,
-                                     const std::vector<long> &rank,
-                                     const std::vector<Real> &param)
+tensorfact::TtTensor<Real>::Impl::Impl(long num_dim,
+                                       const std::vector<long> &size,
+                                       const std::vector<long> &rank,
+                                       const std::vector<Real> &param)
     : num_dim_(num_dim),
       size_(size),
       rank_(rank),
       offset_(num_dim + 1),
       param_(param) {
     if (num_dim_ < 1) {
-        throw std::invalid_argument("Dimension must be positive");
+        throw std::invalid_argument("Number of dimensions must be positive");
     }
 
     if (size_.size() != num_dim_) {
         throw std::invalid_argument(
-            "Length of the size vector is incompatible with dimension");
+            "Size vector length must equal number of dimensions");
     }
+
     for (long d = 0; d < num_dim_; ++d) {
         if (size_[d] < 1) {
-            throw std::invalid_argument(
-                "Entries of the size vector must be positive");
+            throw std::invalid_argument("Size vector entries must be positive");
         }
     }
 
     if (rank_.size() != num_dim_ + 1) {
         throw std::invalid_argument(
-            "Length of the rank vector is incompatible with dimension");
+            "Rank vector length must equal one plus number of dimensions");
     }
+
     if (rank_[0] != 1 || rank_[num_dim_] != 1) {
         throw std::invalid_argument("Boundary ranks must be one");
     }
+
     for (long d = 1; d < num_dim_; ++d) {
         if (rank_[d] < 1) {
-            throw std::invalid_argument(
-                "Entries of the rank vector must be positive");
+            throw std::invalid_argument("Interior ranks must be positive");
         }
     }
 
@@ -143,13 +157,13 @@ tensorfact::TtTensor<Real>::TtTensor(long num_dim,
 
     if (param_.size() != offset_[num_dim_]) {
         throw std::invalid_argument(
-            "Length of the parameter vector is incompatible with dimension, "
-            "size and rank");
+            "Parameter vector length is incompatible with number of "
+            "dimensions, size and rank");
     }
 }
 
 template <typename Real>
-long tensorfact::TtTensor<Real>::NumElement() const {
+long tensorfact::TtTensor<Real>::Impl::NumElement() const {
     long num_element = 1;
 
     for (long d = 0; d < num_dim_; ++d) {
@@ -160,10 +174,12 @@ long tensorfact::TtTensor<Real>::NumElement() const {
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
-    const TtTensor<Real> &other) {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator+=(
+    const tensorfact::TtTensor<Real>::Impl &other) {
     if (num_dim_ != other.num_dim_) {
-        throw std::invalid_argument("TT tensors must have same dimensionality");
+        throw std::invalid_argument(
+            "TT tensors must have same number of dimensions");
     }
 
     for (long d = 0; d < num_dim_; ++d) {
@@ -173,7 +189,7 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
     }
 
     // copy current object
-    tensorfact::TtTensor<Real> self(*this);
+    tensorfact::TtTensor<Real>::Impl self(*this);
 
     // update ranks
     for (long d = 1; d < num_dim_; ++d) {
@@ -181,6 +197,7 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
     }
 
     // update offsets
+    offset_[0] = 0;
     for (long d = 0; d < num_dim_; ++d) {
         offset_[d + 1] = offset_[d] + rank_[d] * size_[d] * rank_[d + 1];
     }
@@ -240,14 +257,16 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-=(
-    const tensorfact::TtTensor<Real> &other) {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator-=(
+    const tensorfact::TtTensor<Real>::Impl &other) {
     *this += other * static_cast<Real>(-1);
     return *this;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(Real alpha) {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator*=(Real alpha) {
     for (long k = 0; k < rank_[1]; ++k) {
         for (long j = 0; j < size_[0]; ++j) {
             Param(0, j, k, 0) *= alpha;
@@ -258,20 +277,19 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(Real alpha) {
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/=(Real alpha) {
-    if (std::abs(alpha) < std::numeric_limits<Real>::epsilon()) {
-        throw std::logic_error("Dividing by a value too close to zero");
-    }
-
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator/=(Real alpha) {
     *this *= 1 / alpha;
     return *this;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(
-    const TtTensor<Real> &other) {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator*=(
+    const TtTensor<Real>::Impl &other) {
     if (num_dim_ != other.num_dim_) {
-        throw std::invalid_argument("TT tensors must have same dimensionality");
+        throw std::invalid_argument(
+            "TT tensors must have same number of dimensions");
     }
 
     for (long d = 0; d < num_dim_; ++d) {
@@ -281,7 +299,7 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(
     }
 
     // copy current object
-    tensorfact::TtTensor<Real> self(*this);
+    tensorfact::TtTensor<Real>::Impl self(*this);
 
     // update ranks
     for (long d = 0; d <= num_dim_; ++d) {
@@ -318,88 +336,90 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
-    const tensorfact::TtTensor<Real> &other) const {
-    tensorfact::TtTensor<Real> self(*this);
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator+(
+    const tensorfact::TtTensor<Real>::Impl &other) const {
+    tensorfact::TtTensor<Real>::Impl self(*this);
     self += other;
     return self;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-(
-    const tensorfact::TtTensor<Real> &other) const {
-    tensorfact::TtTensor<Real> self(*this);
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator-(
+    const tensorfact::TtTensor<Real>::Impl &other) const {
+    tensorfact::TtTensor<Real>::Impl self(*this);
     self -= other;
     return self;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
-    Real alpha) const {
-    tensorfact::TtTensor<Real> self(*this);
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator*(Real alpha) const {
+    tensorfact::TtTensor<Real>::Impl self(*this);
     self *= alpha;
     return self;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/(
-    Real alpha) const {
-    tensorfact::TtTensor<Real> self(*this);
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator/(Real alpha) const {
+    tensorfact::TtTensor<Real>::Impl self(*this);
     self /= alpha;
     return self;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
-    const TtTensor<Real> &other) const {
-    tensorfact::TtTensor<Real> self(*this);
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::operator*(
+    const TtTensor<Real>::Impl &other) const {
+    tensorfact::TtTensor<Real>::Impl self(*this);
     self *= other;
     return self;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Concatenate(
-    const tensorfact::TtTensor<Real> &other, long dim,
-    Real relative_tolerance) const {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::Concatenate(
+    const tensorfact::TtTensor<Real>::Impl &other, long d) const {
     if (num_dim_ != other.num_dim_) {
         throw std::invalid_argument(
-            "Dimensionality of the two tensors must be the same");
+            "Two tensors must have same number of dimensions");
     }
 
-    if (dim > num_dim_) {
+    if (d >= num_dim_) {
         throw std::invalid_argument("Invalid concatenation dimension");
     }
 
     for (long d = 0; d < num_dim_; ++d) {
-        if (d != dim && size_[d] != other.size_[d]) {
+        if (d != d && size_[d] != other.size_[d]) {
             throw std::invalid_argument(
                 "Tensor sizes must match apart from the concatenation "
                 "dimension");
         }
     }
 
-    const long size_1 = size_[dim];
-    const long size_2 = other.size_[dim];
+    const long size_1 = size_[d];
+    const long size_2 = other.size_[d];
 
-    const tensorfact::TtTensor<Real> tensor_1 =
-        this->AddZeroPaddingBack(dim, size_2);
-    const tensorfact::TtTensor<Real> tensor_2 =
-        other.AddZeroPaddingFront(dim, size_1);
+    const tensorfact::TtTensor<Real>::Impl tensor_1 =
+        AddZeroPaddingBack(d, size_2);
+    const tensorfact::TtTensor<Real>::Impl tensor_2 =
+        other.AddZeroPaddingFront(d, size_1);
 
-    tensorfact::TtTensor<Real> tensor = tensor_1 + tensor_2;
-    tensor.Round(relative_tolerance);
+    tensorfact::TtTensor<Real>::Impl tensor = tensor_1 + tensor_2;
 
     return tensor;
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Shift(long d,
-                                                             long shift) const {
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::Shift(long d, long shift) const {
     if (d < 0 || d >= num_dim_) {
         throw std::invalid_argument("Specified dimension is invalid");
     }
 
-    tensorfact::TtTensor<Real> self(*this);
+    tensorfact::TtTensor<Real>::Impl self(*this);
 
     for (long k = 0; k < rank_[d + 1]; ++k) {
         for (long j = 0; j < size_[d]; ++j) {
@@ -420,7 +440,7 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Shift(long d,
 }
 
 template <typename Real>
-Real tensorfact::TtTensor<Real>::Contract(
+Real tensorfact::TtTensor<Real>::Impl::Contract(
     const std::vector<std::vector<Real>> &vectors) const {
     if (vectors.size() != num_dim_) {
         throw std::invalid_argument(
@@ -469,8 +489,8 @@ Real tensorfact::TtTensor<Real>::Contract(
 }
 
 template <typename Real>
-Real tensorfact::TtTensor<Real>::Dot(
-    const tensorfact::TtTensor<Real> &other) const {
+Real tensorfact::TtTensor<Real>::Impl::Dot(
+    const tensorfact::TtTensor<Real>::Impl &other) const {
     if (num_dim_ != other.num_dim_) {
         throw std::invalid_argument(
             "Two tensors must have the same dimensionality");
@@ -563,12 +583,12 @@ Real tensorfact::TtTensor<Real>::Dot(
 }
 
 template <typename Real>
-Real tensorfact::TtTensor<Real>::FrobeniusNorm() const {
+Real tensorfact::TtTensor<Real>::Impl::FrobeniusNorm() const {
     return std::sqrt(this->Dot(*this));
 }
 
 template <typename Real>
-void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
+void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
     // create cores
     std::vector<std::vector<Real>> core(num_dim_);
     for (long d = 0; d < num_dim_; ++d) {
@@ -664,7 +684,7 @@ void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
 }
 
 template <typename Real>
-std::vector<Real> tensorfact::TtTensor<Real>::Full() const {
+std::vector<Real> tensorfact::TtTensor<Real>::Impl::Full() const {
     std::vector<Real> full;
 
     for (long d = 0; d < num_dim_; ++d) {
@@ -698,7 +718,8 @@ std::vector<Real> tensorfact::TtTensor<Real>::Full() const {
 }
 
 template <typename Real>
-Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
+Real tensorfact::TtTensor<Real>::Impl::Entry(
+    const std::vector<long> &index) const {
     auto temp = std::make_shared<std::vector<Real>>();
 
     for (long d = num_dim_ - 1; d >= 0; --d) {
@@ -727,7 +748,7 @@ Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
 }
 
 template <typename Real>
-void tensorfact::TtTensor<Real>::WriteToFile(
+void tensorfact::TtTensor<Real>::Impl::WriteToFile(
     const std::string &file_name) const {
     std::ofstream file(file_name);
     if (!file.is_open()) {
@@ -764,7 +785,8 @@ void tensorfact::TtTensor<Real>::WriteToFile(
 }
 
 template <typename Real>
-void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
+void tensorfact::TtTensor<Real>::Impl::ReadFromFile(
+    const std::string &file_name) {
     std::ifstream file(file_name);
     if (!file.is_open()) {
         throw std::runtime_error("Could not open file for reading TT tensor");
@@ -882,9 +904,9 @@ void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
-    long dim, long pad) const {
-    tensorfact::TtTensor<Real> tt_tensor;
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::AddZeroPaddingBack(long dim, long pad) const {
+    tensorfact::TtTensor<Real>::Impl tt_tensor;
 
     tt_tensor.num_dim_ = num_dim_;
 
@@ -921,9 +943,10 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingBack(
 }
 
 template <typename Real>
-tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
-    long dim, long pad) const {
-    tensorfact::TtTensor<Real> tt_tensor;
+typename tensorfact::TtTensor<Real>::Impl
+tensorfact::TtTensor<Real>::Impl::AddZeroPaddingFront(long dim,
+                                                      long pad) const {
+    tensorfact::TtTensor<Real>::Impl tt_tensor;
 
     tt_tensor.num_dim_ = num_dim_;
 
@@ -957,6 +980,246 @@ tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::AddZeroPaddingFront(
     }
 
     return tt_tensor;
+}
+
+// forwarding
+
+template <typename Real>
+tensorfact::TtTensor<Real>::TtTensor() {
+    impl_ = std::make_shared<tensorfact::TtTensor<Real>::Impl>();
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real>::TtTensor(long num_dim, long size, long rank) {
+    std::vector<long> size_vector(num_dim, size);
+
+    std::vector<long> rank_vector(num_dim + 1, rank);
+    rank_vector[0] = 1;
+    rank_vector[num_dim] = 1;
+
+    long num_param = size * (2 * rank + (num_dim - 2) * rank * rank);
+    std::vector<Real> param(num_param);
+
+    impl_ = std::make_shared<tensorfact::TtTensor<Real>::Impl>(
+        num_dim, size_vector, rank_vector, param);
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real>::TtTensor(long num_dim,
+                                     const std::vector<long> &size,
+                                     const std::vector<long> &rank) {
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+    std::vector<Real> param(num_param);
+
+    impl_ = std::make_shared<tensorfact::TtTensor<Real>::Impl>(num_dim, size,
+                                                               rank, param);
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real>::TtTensor(long num_dim,
+                                     const std::vector<long> &size,
+                                     const std::vector<long> &rank,
+                                     const std::vector<Real> &param) {
+    impl_ = std::make_shared<tensorfact::TtTensor<Real>::Impl>(num_dim, size,
+                                                               rank, param);
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Copy() const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_;
+    return tt_tensor;
+}
+
+template <typename Real>
+const long &tensorfact::TtTensor<Real>::NumDim() const {
+    return impl_->NumDim();
+}
+
+template <typename Real>
+const std::vector<long> &tensorfact::TtTensor<Real>::Size() const {
+    return impl_->Size();
+}
+
+template <typename Real>
+const long &tensorfact::TtTensor<Real>::Size(long d) const {
+    return impl_->Size()[d];
+}
+
+template <typename Real>
+const std::vector<long> &tensorfact::TtTensor<Real>::Rank() const {
+    return impl_->Rank();
+}
+
+template <typename Real>
+const long &tensorfact::TtTensor<Real>::Rank(long d) const {
+    return impl_->Rank()[d];
+}
+
+template <typename Real>
+const std::vector<Real> &tensorfact::TtTensor<Real>::Param() const {
+    return impl_->Param();
+}
+
+template <typename Real>
+std::vector<Real> &tensorfact::TtTensor<Real>::Param() {
+    return impl_->Param();
+}
+
+template <typename Real>
+const Real &tensorfact::TtTensor<Real>::Param(long i, long j, long k,
+                                              long d) const {
+    return impl_->Param(i, j, k, d);
+}
+
+template <typename Real>
+Real &tensorfact::TtTensor<Real>::Param(long i, long j, long k, long d) {
+    return impl_->Param(i, j, k, d);
+}
+
+template <typename Real>
+const long &tensorfact::TtTensor<Real>::NumParam() const {
+    return impl_->NumParam();
+}
+
+template <typename Real>
+long tensorfact::TtTensor<Real>::NumElement() const {
+    return impl_->NumElement();
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+=(
+    const tensorfact::TtTensor<Real> &other) {
+    *impl_ += *(other.impl_);
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-=(
+    const tensorfact::TtTensor<Real> &other) {
+    *impl_ -= *(other.impl_);
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(Real alpha) {
+    *impl_ *= alpha;
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/=(Real alpha) {
+    *impl_ /= alpha;
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*=(
+    const tensorfact::TtTensor<Real> &other) {
+    *impl_ *= *(other.impl_);
+    return *this;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator+(
+    const tensorfact::TtTensor<Real> &other) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_ + *(other.impl_);
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator-(
+    const tensorfact::TtTensor<Real> &other) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_ - *(other.impl_);
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
+    Real alpha) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_ * alpha;
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator/(
+    Real alpha) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_ / alpha;
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::operator*(
+    const tensorfact::TtTensor<Real> &other) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = *impl_ * *(other.impl_);
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Concatenate(
+    const tensorfact::TtTensor<Real> &other, long d) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = impl_->Concatenate(*(other.impl_), d);
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> tensorfact::TtTensor<Real>::Shift(long d,
+                                                             long shift) const {
+    tensorfact::TtTensor<Real> tt_tensor;
+    *(tt_tensor.impl_) = impl_->Shift(d, shift);
+    return tt_tensor;
+}
+
+template <typename Real>
+Real tensorfact::TtTensor<Real>::Contract(
+    const std::vector<std::vector<Real>> &vectors) const {
+    return impl_->Contract(vectors);
+}
+
+template <typename Real>
+Real tensorfact::TtTensor<Real>::Dot(
+    const tensorfact::TtTensor<Real> &other) const {
+    return impl_->Dot(*(other.impl_));
+}
+
+template <typename Real>
+Real tensorfact::TtTensor<Real>::FrobeniusNorm() const {
+    return impl_->FrobeniusNorm();
+}
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::Round(Real relative_tolerance) {
+    impl_->Round(relative_tolerance);
+}
+
+template <typename Real>
+std::vector<Real> tensorfact::TtTensor<Real>::Full() const {
+    return impl_->Full();
+}
+
+template <typename Real>
+Real tensorfact::TtTensor<Real>::Entry(const std::vector<long> &index) const {
+    return impl_->Entry(index);
+}
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::WriteToFile(
+    const std::string &file_name) const {
+    impl_->WriteToFile(file_name);
+}
+
+template <typename Real>
+void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
+    impl_->ReadFromFile(file_name);
 }
 
 // explicit instantiations

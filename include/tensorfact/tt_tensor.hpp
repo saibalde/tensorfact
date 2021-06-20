@@ -3,6 +3,7 @@
 #ifndef TENSORFACT_TTTENSOR_HPP
 #define TENSORFACT_TTTENSOR_HPP
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,7 @@ public:
     ///@{
 
     /// @brief Default constructor
-    TtTensor() = default;
+    TtTensor();
 
     /// @brief Construct a TT-tensor from ranks and sizes with undefined
     /// parameters
@@ -81,12 +82,6 @@ public:
     TtTensor(long num_dim, const std::vector<long> &size,
              const std::vector<long> &rank, const std::vector<Real> &param);
 
-    /// @brief Default copy constructor
-    TtTensor(const TtTensor<Real> &) = default;
-
-    /// @brief Default move constructor
-    TtTensor(TtTensor<Real> &&) = default;
-
     /// @brief Default destructor
     ~TtTensor() = default;
 
@@ -94,8 +89,31 @@ public:
 
     ///@{
 
+    /// @brief Default copy constructor
+    ///
+    /// Construct a new TT tensor that shares the data with this TT tensor
+    TtTensor(const TtTensor<Real> &) = default;
+
     /// @brief Default copy assignment
+    ///
+    /// Share data of this TT tensor with a new TT tensor
+    ///
+    /// @return A shallow copy of this TT tensor
     TtTensor<Real> &operator=(const TtTensor<Real> &) = default;
+
+    /// @brief Deep copy
+    ///
+    /// Create a TT tensor with independent copy of data from this TT tensor
+    ///
+    /// @return A deep copy of this TT tensor
+    TtTensor<Real> Copy() const;
+
+    ///@}
+
+    ///@{
+
+    /// @brief Default move constructor
+    TtTensor(TtTensor<Real> &&) = default;
 
     /// @brief Default move assignment
     TtTensor<Real> &operator=(TtTensor<Real> &&) = default;
@@ -107,37 +125,43 @@ public:
     /// @brief Number of dimensions
     ///
     /// @return Dimensionality \f$d\f$ of TT tensor
-    const long &NumDim() const { return num_dim_; }
+    const long &NumDim() const;
 
     /// @brief Mode sizes
     ///
     /// @return Vector of mode sizes \f$\{n_0, \ldots, n_{d - 1}\}\f$ of TT
     /// tensor
-    const std::vector<long> &Size() const { return size_; }
+    const std::vector<long> &Size() const;
 
     /// @brief Mode size
     ///
     /// @param [in] d   Dimension index \f$k\f$
     //
     /// @return Mode size \f$n_k\f$ of TT tensor
-    const long &Size(long d) const { return size_[d]; }
+    const long &Size(long d) const;
 
     /// @brief TT-ranks
     ///
     /// @return Vector of TT ranks \f$\{r_0, \ldots, r_d\}\f$ of TT tensor
-    const std::vector<long> &Rank() const { return rank_; }
+    const std::vector<long> &Rank() const;
 
     /// @brief TT-rank
     ///
     /// @param [in] d   Dimension index \f$k\f$
     ///
     /// @return TT rank \f$r_k\f$ of TT tensor
-    const long &Rank(long d) const { return rank_[d]; }
+    const long &Rank(long d) const;
 
     /// @brief Parameters of TT tensor (TT core entries)
     ///
     /// @return Vector of TT core entries, unwrapped in column-major fashion
-    const std::vector<Real> &Param() const { return param_; }
+    const std::vector<Real> &Param() const;
+
+    /// @brief Parameters of TT tensor (TT core entries)
+    ///
+    /// @return Modifiable reference to vector of TT core entries, unwrapped in
+    /// column-major fashion
+    std::vector<Real> &Param();
 
     /// @brief Parameter of TT tensor (TT core entry)
     ///
@@ -148,25 +172,7 @@ public:
     ///
     /// @return Entry \f$\mathcal{X}_k(\alpha_k, i_k, \alpha_{k + 1})\f$ of
     /// \f$k\f$-th TT core
-    const Real &Param(long i, long j, long k, long d) const {
-        return param_[LinearIndex(i, j, k, d)];
-    }
-
-    /// @brief Number of parameters
-    ///
-    /// @return Total number of parameters (entries of all TT cores)
-    const long &NumParam() const { return offset_[num_dim_]; }
-
-    /// @brief Number of elements in full tensor
-    ///
-    /// @return Total number of elements in uncompressed tensor
-    long NumElement() const;
-
-    /// @brief Parameters of TT tensor (TT core entries)
-    ///
-    /// @return Modifiable reference to vector of TT core entries, unwrapped in
-    /// column-major fashion
-    std::vector<Real> &Param() { return param_; }
+    const Real &Param(long i, long j, long k, long d) const;
 
     /// @brief Parameter of TT tensor (TT core entry)
     ///
@@ -177,9 +183,17 @@ public:
     ///
     /// @return Modifiable reference to entry \f$\mathcal{X}_k(\alpha_k, i_k,
     /// \alpha_{k + 1})\f$ of \f$k\f$-th TT core
-    Real &Param(long i, long j, long k, long d) {
-        return param_[LinearIndex(i, j, k, d)];
-    }
+    Real &Param(long i, long j, long k, long d);
+
+    /// @brief Number of parameters
+    ///
+    /// @return Total number of parameters (entries of all TT cores)
+    const long &NumParam() const;
+
+    /// @brief Number of elements in full tensor
+    ///
+    /// @return Total number of elements in uncompressed tensor
+    long NumElement() const;
 
     ///@}
 
@@ -306,11 +320,10 @@ public:
     /// \f]
     ///
     /// @param [in] other   Other TT tensor \f$\mathcal{Y}\f$
-    /// @param [in] dim     Dimension index \f$k\f$
+    /// @param [in] d       Dimension index \f$k\f$
     ///
     /// @return Concatenated tensor \f$\mathcal{Z}\f$
-    TtTensor<Real> Concatenate(const TtTensor<Real> &other, long dim,
-                               Real relative_tolerance) const;
+    TtTensor<Real> Concatenate(const TtTensor<Real> &other, long d) const;
 
     /// @brief Shift of entries along dimension
     ///
@@ -321,11 +334,11 @@ public:
     /// \f]
     /// when right hand side is known; rest of the entries are set to zero
     ///
-    /// @param [in] site    Dimension index \f$k\f$
+    /// @param [in] d       Dimension index \f$k\f$
     /// @param [in] shift   Shift \f$l\f$
     ///
     /// @return Shifted tensor \f$\mathcal{Z}\f$
-    TtTensor<Real> Shift(long site, long shift) const;
+    TtTensor<Real> Shift(long d, long shift) const;
 
     ///@}
 
@@ -434,22 +447,8 @@ public:
     ///@}
 
 private:
-    /// Linear index for unwrapping paramter vector
-    long LinearIndex(long i, long j, long k, long d) const {
-        return i + rank_[d] * (j + size_[d] * k) + offset_[d];
-    }
-
-    /// Zero-padding to the back of a dimension
-    TtTensor<Real> AddZeroPaddingBack(long dim, long pad) const;
-
-    /// Zero-padding to the front of a dimension
-    TtTensor<Real> AddZeroPaddingFront(long dim, long pad) const;
-
-    long num_dim_;
-    std::vector<long> size_;
-    std::vector<long> rank_;
-    std::vector<long> offset_;
-    std::vector<Real> param_;
+    class Impl;
+    std::shared_ptr<Impl> impl_;
 };
 
 /// @brief Multiplication of TT tensor with scalar

@@ -155,6 +155,120 @@ TEST(TtTensor, ConstructFromSizeRankParam) {
     }
 }
 
+TEST(TtTensor, ConstructCopy) {
+    long num_dim = 4;
+    std::vector<long> size{5, 3, 6, 4};
+    std::vector<long> rank{1, 6, 2, 3, 1};
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<float> param(num_param, 2.0f);
+
+    tensorfact::TtTensor<float> tt_tensor1(num_dim, size, rank, param);
+    tensorfact::TtTensor<float> tt_tensor2 = tt_tensor1;
+
+    for (auto &p : tt_tensor2.Param()) {
+        p = 1.0f;
+    }
+
+    for (auto &p : tt_tensor1.Param()) {
+        ASSERT_NEAR(p, 1.0f, 1.0e-05f);
+    }
+}
+
+TEST(TtTensor, ConstructMove) {
+    long num_dim = 4;
+    std::vector<long> size{5, 3, 6, 4};
+    std::vector<long> rank{1, 6, 2, 3, 1};
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<float> param(num_param, 2.0f);
+
+    tensorfact::TtTensor<float> tt_tensor1(num_dim, size, rank, param);
+    tensorfact::TtTensor<float> tt_tensor2 = std::move(tt_tensor1);
+
+    for (auto &p : tt_tensor2.Param()) {
+        ASSERT_NEAR(p, 2.0f, 1.0e-05f);
+    }
+}
+
+TEST(TtTensor, AssignCopy) {
+    long num_dim = 4;
+    std::vector<long> size{5, 3, 6, 4};
+    std::vector<long> rank{1, 6, 2, 3, 1};
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<float> param(num_param, 2.0f);
+
+    tensorfact::TtTensor<float> tt_tensor1(num_dim, size, rank, param);
+    tensorfact::TtTensor<float> tt_tensor2;
+    tt_tensor2 = tt_tensor1;
+
+    for (auto &p : tt_tensor2.Param()) {
+        p = 1.0f;
+    }
+
+    for (auto &p : tt_tensor1.Param()) {
+        ASSERT_NEAR(p, 1.0f, 1.0e-05f);
+    }
+}
+
+TEST(TtTensor, AssignMove) {
+    long num_dim = 4;
+    std::vector<long> size{5, 3, 6, 4};
+    std::vector<long> rank{1, 6, 2, 3, 1};
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<float> param(num_param, 2.0f);
+
+    tensorfact::TtTensor<float> tt_tensor1(num_dim, size, rank, param);
+    tensorfact::TtTensor<float> tt_tensor2;
+    tt_tensor2 = std::move(tt_tensor1);
+
+    for (auto &p : tt_tensor2.Param()) {
+        ASSERT_NEAR(p, 2.0f, 1.0e-05f);
+    }
+}
+
+TEST(TtTensor, Copy) {
+    long num_dim = 4;
+    std::vector<long> size{5, 3, 6, 4};
+    std::vector<long> rank{1, 6, 2, 3, 1};
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<float> param(num_param, 2.0f);
+
+    tensorfact::TtTensor<float> tt_tensor1(num_dim, size, rank, param);
+    tensorfact::TtTensor<float> tt_tensor2 = tt_tensor1.Copy();
+
+    for (auto &p : tt_tensor2.Param()) {
+        p = 1.0f;
+    }
+
+    for (auto &p : tt_tensor1.Param()) {
+        ASSERT_NEAR(p, 2.0f, 1.0e-05f);
+    }
+}
+
 TEST(TtTensor, Addition) {
     std::vector<long> size{5, 3, 6, 4};
 
@@ -221,7 +335,8 @@ TEST(TtTensor, Concatenate) {
     tensorfact::TtTensor<double> tt_tensor_2 = RandomTensor<double>(size2, 5);
 
     tensorfact::TtTensor<double> tt_tensor =
-        tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-15);
+        tt_tensor_1.Concatenate(tt_tensor_2, 1);
+    tt_tensor.Round(1.0e-15);
 
     for (long l = 0; l < size1[3]; ++l) {
         for (long k = 0; k < size1[2]; ++k) {
