@@ -3,66 +3,71 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <random>
 
 template <typename Real>
-tensorfact::TtTensor<Real> SumOfIndicesTtTensor(const std::vector<long> &size) {
-    const long ndim = size.size();
-    std::vector<long> rank(ndim + 1);
-    std::vector<long> offset(ndim + 1);
+tensorfact::TtTensor<Real> RandomTensor(const std::vector<long> &size,
+                                        long rank) {
+    const long num_dim = size.size();
 
-    offset[0] = 0;
-    rank[0] = 1;
-    for (long d = 0; d < ndim; ++d) {
-        rank[d + 1] = (d < ndim - 1) ? 2 : 1;
-        offset[d + 1] = offset[d] + rank[d] * size[d] * rank[d + 1];
+    std::vector<long> rank_vector(num_dim + 1, rank);
+    rank_vector[0] = 1;
+    rank_vector[num_dim] = 1;
+
+    tensorfact::TtTensor<Real> tt_tensor(num_dim, size, rank_vector);
+
+    std::random_device device;
+    std::mt19937 rng(device());
+    std::uniform_real_distribution<Real> dist(-1.0, 1.0);
+
+    for (auto &p : tt_tensor.Param()) {
+        p = dist(rng);
     }
-    std::vector<Real> param(offset[ndim]);
 
-    for (long d = 0; d < ndim; ++d) {
+    return tt_tensor;
+}
+
+template <typename Real>
+tensorfact::TtTensor<Real> IndexSumTensor(const std::vector<long> &size) {
+    const long num_dim = size.size();
+
+    std::vector<long> rank(num_dim + 1, 2);
+    rank[0] = 1;
+    rank[num_dim] = 1;
+
+    tensorfact::TtTensor<Real> tt_tensor(num_dim, size, rank);
+
+    for (long d = 0; d < num_dim; ++d) {
         for (long i = 0; i < size[d]; ++i) {
             if (d == 0) {
-                // (0, i, 0, d) = i
-                param[i + offset[d]] = i;
-
-                // (0, i, 1, d) = 1
-                param[i + size[d] + offset[d]] = static_cast<Real>(1);
-            } else if (d < ndim - 1) {
-                // (0, i, 0, d) = 1
-                param[2 * i + offset[d]] = static_cast<Real>(1);
-
-                // (1, i, 0, d) = i
-                param[1 + 2 * i + offset[d]] = i;
-
-                // (0, i, 1, d) = 0
-                param[2 * i + 2 * size[d] + offset[d]] = static_cast<Real>(0);
-
-                // (1, i, 1, d) = 1
-                param[1 + 2 * i + 2 * size[d] + offset[d]] =
-                    static_cast<Real>(1);
+                tt_tensor.Param(0, i, 0, d) = i;
+                tt_tensor.Param(0, i, 1, d) = 1;
+            } else if (d < num_dim - 1) {
+                tt_tensor.Param(0, i, 0, d) = 1;
+                tt_tensor.Param(1, i, 0, d) = i;
+                tt_tensor.Param(0, i, 1, d) = 0;
+                tt_tensor.Param(1, i, 1, d) = 1;
             } else {
-                // (0, i, 0, d) = 1
-                param[2 * i + offset[d]] = static_cast<Real>(1);
-
-                // (1, i, 0, d) = i
-                param[1 + 2 * i + offset[d]] = i;
+                tt_tensor.Param(0, i, 0, d) = 1;
+                tt_tensor.Param(1, i, 0, d) = i;
             }
         }
     }
 
-    return tensorfact::TtTensor<Real>(ndim, size, rank, param);
+    return tt_tensor;
 }
 
 TEST(TtTensor, ConstructFromParamAndEntry) {
     const std::vector<long> size{5, 3, 6, 4};
-    const tensorfact::TtTensor<float> tt_tensor =
-        SumOfIndicesTtTensor<float>(size);
+
+    const tensorfact::TtTensor<float> tt_tensor = IndexSumTensor<float>(size);
 
     for (long l = 0; l < 4; ++l) {
         for (long k = 0; k < 6; ++k) {
             for (long j = 0; j < 3; ++j) {
                 for (long i = 0; i < 5; ++i) {
                     ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}), i + j + k + l,
-                                1.0e-05);
+                                1.0e-05f);
                 }
             }
         }
@@ -70,19 +75,19 @@ TEST(TtTensor, ConstructFromParamAndEntry) {
 }
 
 TEST(TtTensor, Addition) {
-    tensorfact::TtTensor<float> tt_tensor1 =
-        5.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor2 =
-        -2.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
+    std::vector<long> size{5, 3, 6, 4};
 
-    tensorfact::TtTensor<float> tt_tensor = tt_tensor1 + tt_tensor2;
+    tensorfact::TtTensor<float> tt_tensor1 = RandomTensor<float>(size, 2);
+    tensorfact::TtTensor<float> tt_tensor2 = RandomTensor<float>(size, 3);
+    tensorfact::TtTensor<float> tt_tensor3 = tt_tensor1 + tt_tensor2;
 
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
-                    ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
-                                3.0 * (i + j + k + l), 1.0e-05);
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    ASSERT_NEAR(tt_tensor1.Entry({i, j, k, l}) +
+                                    tt_tensor2.Entry({i, j, k, l}),
+                                tt_tensor3.Entry({i, j, k, l}), 1.0e-05f);
                 }
             }
         }
@@ -90,16 +95,17 @@ TEST(TtTensor, Addition) {
 }
 
 TEST(TtTensor, ScalarMultiplication) {
-    tensorfact::TtTensor<double> tt_tensor1 =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    std::vector<long> size{5, 3, 6, 4};
+
+    tensorfact::TtTensor<double> tt_tensor1 = RandomTensor<double>(size, 4);
     tensorfact::TtTensor<double> tt_tensor2 = 2.0 * tt_tensor1;
 
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
-                    ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}),
-                                2.0 * (i + j + k + l), 1.0e-15);
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    ASSERT_NEAR(2.0 * tt_tensor1.Entry({i, j, k, l}),
+                                tt_tensor2.Entry({i, j, k, l}), 1.0e-15);
                 }
             }
         }
@@ -107,16 +113,19 @@ TEST(TtTensor, ScalarMultiplication) {
 }
 
 TEST(TtTensor, ElementwiseMultiplication) {
-    tensorfact::TtTensor<double> tt_tensor1 =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
-    tensorfact::TtTensor<double> tt_tensor2 = tt_tensor1 * tt_tensor1;
+    std::vector<long> size{4, 3, 6, 5};
 
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
-                    ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}),
-                                std::pow(i + j + k + l, 2), 1.0e-15);
+    tensorfact::TtTensor<double> tt_tensor1 = RandomTensor<double>(size, 5);
+    tensorfact::TtTensor<double> tt_tensor2 = RandomTensor<double>(size, 2);
+    tensorfact::TtTensor<double> tt_tensor3 = tt_tensor1 * tt_tensor2;
+
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    ASSERT_NEAR(tt_tensor1.Entry({i, j, k, l}) *
+                                    tt_tensor2.Entry({i, j, k, l}),
+                                tt_tensor3.Entry({i, j, k, l}), 1.0e-15);
                 }
             }
         }
@@ -124,18 +133,18 @@ TEST(TtTensor, ElementwiseMultiplication) {
 }
 
 TEST(TtTensor, Dot) {
-    tensorfact::TtTensor<float> tt_tensor1 =
-        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
-    tensorfact::TtTensor<float> tt_tensor2 =
-        -2.0f * SumOfIndicesTtTensor<float>({5, 3, 6, 4});
+    std::vector<long> size{5, 3, 6, 4};
+
+    tensorfact::TtTensor<float> tt_tensor1 = IndexSumTensor<float>(size);
+    tensorfact::TtTensor<float> tt_tensor2 = -2.0f * tt_tensor1;
 
     float obtained_value = tt_tensor1.Dot(tt_tensor2);
 
     float expected_value = 0.0f;
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
                     expected_value += std::pow(i + j + k + l, 2.0f);
                 }
             }
@@ -143,20 +152,21 @@ TEST(TtTensor, Dot) {
     }
     expected_value *= -2.0f;
 
-    ASSERT_NEAR(obtained_value, expected_value, 1.0e-05);
+    ASSERT_NEAR(obtained_value, expected_value, 1.0e-05f);
 }
 
 TEST(TtTensor, FrobeniusNorm) {
-    tensorfact::TtTensor<double> tt_tensor =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
+    std::vector<long> size{5, 3, 6, 4};
+
+    tensorfact::TtTensor<double> tt_tensor = IndexSumTensor<double>(size);
 
     double obtained_value = tt_tensor.FrobeniusNorm();
 
     double expected_value = 0.0;
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
                     expected_value += std::pow(i + j + k + l, 2.0);
                 }
             }
@@ -168,18 +178,19 @@ TEST(TtTensor, FrobeniusNorm) {
 }
 
 TEST(TtTensor, Round) {
-    const tensorfact::TtTensor<float> tt_tensor =
-        SumOfIndicesTtTensor<float>({5, 3, 6, 4});
+    std::vector<long> size{5, 3, 6, 4};
 
-    const tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
+    tensorfact::TtTensor<float> tt_tensor = RandomTensor<float>(size, 4);
 
+    tensorfact::TtTensor<float> tt_tensor_1 = 2.0f * tt_tensor;
     tensorfact::TtTensor<float> tt_tensor_2 = tt_tensor + tt_tensor;
+
     tt_tensor_2.Round(1.0e-05f);
 
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 3; ++j) {
-                for (long i = 0; i < 5; ++i) {
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
                     ASSERT_NEAR(tt_tensor_1.Entry({i, j, k, l}),
                                 tt_tensor_2.Entry({i, j, k, l}), 1.0e-04f);
                 }
@@ -195,24 +206,25 @@ TEST(TtTensor, Round) {
 }
 
 TEST(TtTensor, Concatenate) {
-    const tensorfact::TtTensor<double> tt_tensor_1 =
-        SumOfIndicesTtTensor<double>({5, 3, 6, 4});
-    const tensorfact::TtTensor<double> tt_tensor_2 =
-        SumOfIndicesTtTensor<double>({5, 7, 6, 4});
+    std::vector<long> size1{5, 3, 6, 4};
+    std::vector<long> size2{5, 7, 6, 4};
 
-    const tensorfact::TtTensor<double> tt_tensor =
+    tensorfact::TtTensor<double> tt_tensor_1 = IndexSumTensor<double>(size1);
+    tensorfact::TtTensor<double> tt_tensor_2 = IndexSumTensor<double>(size2);
+
+    tensorfact::TtTensor<double> tt_tensor =
         tt_tensor_1.Concatenate(tt_tensor_2, 1, 1.0e-14);
 
-    for (long l = 0; l < 4; ++l) {
-        for (long k = 0; k < 6; ++k) {
-            for (long j = 0; j < 10; ++j) {
-                for (long i = 0; i < 5; ++i) {
-                    if (j < 3) {
+    for (long l = 0; l < size1[3]; ++l) {
+        for (long k = 0; k < size1[2]; ++k) {
+            for (long j = 0; j < size1[1] + size2[1]; ++j) {
+                for (long i = 0; i < size1[0]; ++i) {
+                    if (j < size1[1]) {
                         ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
                                     tt_tensor_1.Entry({i, j, k, l}), 1.0e-13);
                     } else {
                         ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
-                                    tt_tensor_2.Entry({i, j - 3, k, l}),
+                                    tt_tensor_2.Entry({i, j - size1[1], k, l}),
                                     1.0e-13);
                     }
                 }
@@ -222,15 +234,17 @@ TEST(TtTensor, Concatenate) {
 }
 
 TEST(TtTensor, Full) {
-    tensorfact::TtTensor<float> tt_tensor =
-        SumOfIndicesTtTensor<float>({3, 5, 4, 6});
+    std::vector<long> size{3, 5, 4, 6};
+
+    tensorfact::TtTensor<float> tt_tensor = IndexSumTensor<float>(size);
     std::vector<float> tensor = tt_tensor.Full();
 
-    for (long l = 0; l < 6; ++l) {
-        for (long k = 0; k < 4; ++k) {
-            for (long j = 0; j < 5; ++j) {
-                for (long i = 0; i < 3; ++i) {
-                    ASSERT_NEAR(tensor[i + 3 * j + 15 * k + 60 * l],
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    ASSERT_NEAR(tensor[i + size[0] * j + size[0] * size[1] * k +
+                                       size[0] * size[1] * size[2] * l],
                                 i + j + k + l, 1.0e-05);
                 }
             }
@@ -239,9 +253,10 @@ TEST(TtTensor, Full) {
 }
 
 TEST(TtTensor, TextIO) {
+    std::vector<long> size{4, 3, 6, 5};
+
     {
-        tensorfact::TtTensor<double> tt_tensor =
-            SumOfIndicesTtTensor<double>({4, 3, 6, 5});
+        tensorfact::TtTensor<double> tt_tensor = IndexSumTensor<double>(size);
         tt_tensor.WriteToFile("tt_tensor.txt");
     }
 
@@ -249,12 +264,46 @@ TEST(TtTensor, TextIO) {
         tensorfact::TtTensor<double> tt_tensor;
         tt_tensor.ReadFromFile("tt_tensor.txt");
 
-        for (long l = 0; l < 5; ++l) {
-            for (long k = 0; k < 6; ++k) {
-                for (long j = 0; j < 3; ++j) {
-                    for (long i = 0; i < 4; ++i) {
+        for (long l = 0; l < size[3]; ++l) {
+            for (long k = 0; k < size[2]; ++k) {
+                for (long j = 0; j < size[1]; ++j) {
+                    for (long i = 0; i < size[0]; ++i) {
                         ASSERT_NEAR(tt_tensor.Entry({i, j, k, l}),
                                     i + j + k + l, 1.0e-15);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(TtTensor, Shift) {
+    std::vector<long> size({3, 4, 5, 6});
+
+    tensorfact::TtTensor<float> tt_tensor1 = RandomTensor<float>(size, 4);
+    tensorfact::TtTensor<float> tt_tensor2 = tt_tensor1.Shift(1, 2);
+    tensorfact::TtTensor<float> tt_tensor3 = tt_tensor1.Shift(2, -3);
+
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    if (j < size[1] - 2) {
+                        ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}),
+                                    tt_tensor1.Entry({i, j + 2, k, l}),
+                                    1.0e-15);
+                    } else {
+                        ASSERT_NEAR(tt_tensor2.Entry({i, j, k, l}), 0.0,
+                                    1.0e-15);
+                    }
+
+                    if (k >= 3) {
+                        ASSERT_NEAR(tt_tensor3.Entry({i, j, k, l}),
+                                    tt_tensor1.Entry({i, j, k - 3, l}),
+                                    1.0e-15);
+                    } else {
+                        ASSERT_NEAR(tt_tensor3.Entry({i, j, k, l}), 0.0,
+                                    1.0e-15);
                     }
                 }
             }
