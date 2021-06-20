@@ -51,7 +51,7 @@ public:
 
     /// @brief Construct a TT-tensor from ranks and sizes with undefined
     /// parameters
-    /// 
+    ///
     /// Given number of dimensions \f$d\f$, mode sizes \f$\{n_0, \ldots,
     /// n_{d - 1}\}\f$ and TT ranks \f$\{r_0, \ldots, r_d\}\f$ constructs the
     /// corresponding TT tensor. Entries of the TT cores are undefined.
@@ -63,7 +63,7 @@ public:
              const std::vector<long> &rank);
 
     /// @brief Construct a TT-tensor from ranks, sizes and parameters
-    /// 
+    ///
     /// Given number of dimensions \f$d\f$, mode sizes \f$\{n_0, \ldots,
     /// n_{d - 1}\}\f$, TT ranks \f$\{r_0, \ldots, r_d\}\f$ and parameter value
     /// vector \f$v\f$ constructs the corresponding TT tensor. Entries of the
@@ -186,7 +186,7 @@ public:
     ///@{
 
     /// @brief In-place addition with TT tensor
-    /// 
+    ///
     /// Allows \f$\mathcal{X} += \mathcal{Y}\f$
     ///
     /// @param [in] other   Other tensor \f$\mathcal{Y}\f$
@@ -195,7 +195,7 @@ public:
     TtTensor<Real> operator+=(const TtTensor<Real> &other);
 
     /// @brief In-place subtraction of TT tensor
-    /// 
+    ///
     /// Allows \f$\mathcal{X} -= \mathcal{Y}\f$
     ///
     /// @param [in] other   Other tensor \f$\mathcal{Y}\f$
@@ -204,7 +204,7 @@ public:
     TtTensor<Real> operator-=(const TtTensor<Real> &other);
 
     /// @brief In-place multiplication by scalar
-    /// 
+    ///
     /// Allows \f$\mathcal{X} *= \alpha\f$
     ///
     /// @param [in] alpha   Scalar \f$\alpha\f$
@@ -213,7 +213,7 @@ public:
     TtTensor<Real> operator*=(Real alpha);
 
     /// @brief In-place division by scalar
-    /// 
+    ///
     /// Allows \f$\mathcal{X} /= \alpha\f$
     ///
     /// @param [in] alpha   Scalar \f$\alpha\f$
@@ -222,7 +222,7 @@ public:
     TtTensor<Real> operator/=(Real alpha);
 
     /// @brief In-place elementwise multiplication by TT tensor
-    /// 
+    ///
     /// Allows \f$\mathcal{X} \circ= \mathcal{Y}\f$ where \f$\circ\f$ is
     /// elementwise multiplication
     ///
@@ -313,7 +313,7 @@ public:
                                Real relative_tolerance) const;
 
     /// @brief Shift of entries along dimension
-    /// 
+    ///
     /// Given dimension index \f$k\f$ and shift \f$l\f$ construct a TT tensor
     /// \f$\mathcal{Z}\f$ same size such that
     /// \f[
@@ -356,7 +356,7 @@ public:
     /// \sum_{i_{d - 1} = 0}^{n_{d - 1} - 1} \mathcal{X}(i_0, \ldots,
     /// i_{d - 1})^2\right)^{1/2}
     /// \f]
-    /// 
+    ///
     /// @return Frobenius norm \f$\Vert \mathcal{X} \Vert_2\f$
     Real FrobeniusNorm() const;
 
@@ -399,9 +399,9 @@ public:
     Real Entry(const std::vector<long> &index) const;
 
     ///@}
-    
+
     ///@{
-    
+
     /// @brief Write TT-Tensor to text file
     ///
     /// @param [in] file_name   Name of file where TT tensor will be saved

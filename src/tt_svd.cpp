@@ -4,7 +4,7 @@
 #include <limits>
 #include <stdexcept>
 
-#include "utils.hpp"
+#include "truncated_svd.hpp"
 
 template <typename Real>
 tensorfact::TtTensor<Real> tensorfact::TtSvd(const std::vector<long> &size,

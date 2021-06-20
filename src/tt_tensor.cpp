@@ -9,7 +9,8 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "utils.hpp"
+#include "thin_rq.hpp"
+#include "truncated_svd.hpp"
 
 template <typename Real>
 tensorfact::TtTensor<Real>::TtTensor(long num_dim, long size, long rank)
@@ -818,7 +819,7 @@ void tensorfact::TtTensor<Real>::ReadFromFile(const std::string &file_name) {
             throw std::runtime_error("File does not specify TT parameters");
         }
     }
-    
+
     for (long n = 0; n < offset_[num_dim_]; ++n) {
         if (std::getline(file, line)) {
             std::istringstream line_stream(line);

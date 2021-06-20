@@ -1,5 +1,6 @@
 add_library(tensorfact
-    utils.cpp
+    thin_rq.cpp
+    truncated_svd.cpp
     tt_tensor.cpp
     tt_svd.cpp
 )

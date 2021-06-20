@@ -28,6 +28,7 @@ macro(TensorFact_add_test TESTNAME)
     set_target_properties(${TESTNAME} PROPERTIES FOLDER test)
 endmacro()
 
-TensorFact_add_test(utils_test utils_test.cpp)
+TensorFact_add_test(thin_rq_test thin_rq_test.cpp)
+TensorFact_add_test(truncated_svd_test truncated_svd_test.cpp)
 TensorFact_add_test(tt_tensor_test tt_tensor_test.cpp)
 TensorFact_add_test(tt_svd_test tt_svd_test.cpp)
