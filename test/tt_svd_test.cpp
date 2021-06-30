@@ -52,7 +52,7 @@ tensorfact::TtTensor<Real> SumOfIndicesTtTensor(const std::vector<long> &size) {
     return tensorfact::TtTensor<Real>(ndim, size, rank, param);
 }
 
-TEST(TtSvd, TtSvd) {
+TEST(TtSvd, TtSvdRelativeTolerance) {
     const std::vector<long> size{3, 4, 5, 6};
     std::vector<double> array(360);
     for (long l = 0; l < 6; ++l) {
@@ -94,6 +94,50 @@ TEST(TtSvd, TtSvd) {
     absolute_error = std::sqrt(absolute_error);
 
     ASSERT_LE(absolute_error, relative_tolerance * frobenius_norm);
+}
+
+TEST(TtSvd, TtSvdMaxRank) {
+    const std::vector<long> size{3, 4, 5, 6};
+    std::vector<float> array(360);
+    for (long l = 0; l < 6; ++l) {
+        for (long k = 0; k < 5; ++k) {
+            for (long j = 0; j < 4; ++j) {
+                for (long i = 0; i < 3; ++i) {
+                    array[i + 3 * j + 12 * k + 60 * l] = i + j + k + l;
+                }
+            }
+        }
+    }
+
+    long max_rank = 2;
+
+    tensorfact::TtTensor<float> tt_tensor =
+        tensorfact::TtSvd<float>(size, array, max_rank);
+
+    const auto &rank = tt_tensor.Rank();
+    ASSERT_EQ(rank[0], 1);
+    ASSERT_EQ(rank[1], 2);
+    ASSERT_EQ(rank[2], 2);
+    ASSERT_EQ(rank[3], 2);
+    ASSERT_EQ(rank[4], 1);
+
+    float frobenius_norm = 0.0f;
+    float absolute_error = 0.0f;
+    for (long l = 0; l < 6; ++l) {
+        for (long k = 0; k < 5; ++k) {
+            for (long j = 0; j < 4; ++j) {
+                for (long i = 0; i < 3; ++i) {
+                    frobenius_norm += std::pow(i + j + k + l, 2.0f);
+                    absolute_error += std::pow(
+                        i + j + k + l - tt_tensor.Entry({i, j, k, l}), 2.0f);
+                }
+            }
+        }
+    }
+    frobenius_norm = std::sqrt(frobenius_norm);
+    absolute_error = std::sqrt(absolute_error);
+
+    ASSERT_NEAR(absolute_error / frobenius_norm, 0.0f, 1.0e-05f);
 }
 
 int main(int argc, char **argv) {

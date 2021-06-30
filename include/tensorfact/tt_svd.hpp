@@ -26,6 +26,11 @@ template <typename Real>
 TtTensor<Real> TtSvd(const std::vector<long> &size,
                      const std::vector<Real> &array, Real relative_tolerance);
 
+/// Compute TT factorization from full tensors using TT-SVD
+template <typename Real>
+TtTensor<Real> TtSvd(const std::vector<long> &size,
+                     const std::vector<Real> &array, long max_rank);
+
 }  // namespace tensorfact
 
 #endif
