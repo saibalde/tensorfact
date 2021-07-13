@@ -327,7 +327,7 @@ TEST(TtTensor, ElementwiseMultiplication) {
     }
 }
 
-TEST(TtTensor, Concatenate) {
+TEST(TtTensor, ConcatenateExistingDimension) {
     std::vector<long> size1{5, 3, 6, 4};
     std::vector<long> size2{5, 7, 6, 4};
 
@@ -350,6 +350,30 @@ TEST(TtTensor, Concatenate) {
                                     tt_tensor_2.Entry({i, j - size1[1], k, l}),
                                     1.0e-13);
                     }
+                }
+            }
+        }
+    }
+}
+
+TEST(TtTensor, ConcatenateNewDimension) {
+    std::vector<long> size{5, 3, 6, 4};
+
+    tensorfact::TtTensor<double> tt_tensor_1 = RandomTensor<double>(size, 3);
+    tensorfact::TtTensor<double> tt_tensor_2 = RandomTensor<double>(size, 5);
+
+    tensorfact::TtTensor<double> tt_tensor =
+        tt_tensor_1.Concatenate(tt_tensor_2, 4);
+    tt_tensor.Round(1.0e-15);
+
+    for (long l = 0; l < size[3]; ++l) {
+        for (long k = 0; k < size[2]; ++k) {
+            for (long j = 0; j < size[1]; ++j) {
+                for (long i = 0; i < size[0]; ++i) {
+                    ASSERT_NEAR(tt_tensor.Entry({i, j, k, l, 0}),
+                                tt_tensor_1.Entry({i, j, k, l}), 1.0e-13);
+                    ASSERT_NEAR(tt_tensor.Entry({i, j, k, l, 1}),
+                                tt_tensor_2.Entry({i, j, k, l}), 1.0e-13);
                 }
             }
         }

@@ -81,7 +81,7 @@ tensorfact::TtTensor<Real> tensorfact::TtSvd(const std::vector<long> &size,
                                              const std::vector<Real> &array,
                                              long max_rank) {
     if (max_rank < 1) {
-        throw std::logic_error("Maximum rank must be ast least 1");
+        throw std::logic_error("Maximum rank must be at least 1");
     }
 
     long ndim = size.size();

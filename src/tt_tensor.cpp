@@ -381,33 +381,101 @@ tensorfact::TtTensor<Real>::Impl::operator*(
 template <typename Real>
 typename tensorfact::TtTensor<Real>::Impl
 tensorfact::TtTensor<Real>::Impl::Concatenate(
-    const tensorfact::TtTensor<Real>::Impl &other, long d) const {
+    const tensorfact::TtTensor<Real>::Impl &other, long dim) const {
     if (num_dim_ != other.num_dim_) {
         throw std::invalid_argument(
             "Two tensors must have same number of dimensions");
     }
 
-    if (d >= num_dim_) {
+    if (dim < 0 || dim > num_dim_) {
         throw std::invalid_argument("Invalid concatenation dimension");
     }
 
     for (long d = 0; d < num_dim_; ++d) {
-        if (d != d && size_[d] != other.size_[d]) {
+        if (d != dim && size_[d] != other.size_[d]) {
             throw std::invalid_argument(
                 "Tensor sizes must match apart from the concatenation "
                 "dimension");
         }
     }
 
-    const long size_1 = size_[d];
-    const long size_2 = other.size_[d];
+    if (dim < num_dim_) {
+        const long size_1 = size_[dim];
+        const long size_2 = other.size_[dim];
 
-    const tensorfact::TtTensor<Real>::Impl tensor_1 =
-        AddZeroPaddingBack(d, size_2);
-    const tensorfact::TtTensor<Real>::Impl tensor_2 =
-        other.AddZeroPaddingFront(d, size_1);
+        const tensorfact::TtTensor<Real>::Impl tensor_1 =
+            AddZeroPaddingBack(dim, size_2);
+        const tensorfact::TtTensor<Real>::Impl tensor_2 =
+            other.AddZeroPaddingFront(dim, size_1);
 
-    tensorfact::TtTensor<Real>::Impl tensor = tensor_1 + tensor_2;
+        tensorfact::TtTensor<Real>::Impl tensor = tensor_1 + tensor_2;
+
+        return tensor;
+    }
+
+    long num_dim = num_dim_ + 1;
+
+    std::vector<long> size(num_dim);
+    for (long d = 0; d < num_dim_; ++d) {
+        size[d] = size_[d];
+    }
+    size[num_dim_] = 2;
+
+    std::vector<long> rank(num_dim + 1);
+    rank[0] = 1;
+    for (long d = 1; d < num_dim_; ++d) {
+        rank[d] = rank_[d] + other.rank_[d];
+    }
+    rank[num_dim_] = 2;
+    rank[num_dim] = 1;
+
+    long num_param = 0;
+    for (long d = 0; d < num_dim; ++d) {
+        num_param += rank[d] * size[d] * rank[d + 1];
+    }
+
+    std::vector<Real> param(num_param, 0);
+
+    tensorfact::TtTensor<Real>::Impl tensor(num_dim, size, rank, param);
+
+    for (long d = 0; d < num_dim; ++d) {
+        if (d == 0) {
+            for (long k = 0; k < rank_[d + 1]; ++k) {
+                for (long j = 0; j < size[d]; ++j) {
+                    tensor.Param(0, j, k, d) = Param(0, j, k, d);
+                }
+            }
+
+            for (long k = 0; k < other.rank_[d + 1]; ++k) {
+                for (long j = 0; j < size[d]; ++j) {
+                    tensor.Param(0, j, k + rank_[d + 1], d) =
+                        other.Param(0, j, k, d);
+                }
+            }
+        } else if (d == num_dim_) {
+            tensor.Param(0, 0, 0, d) = 1;
+            tensor.Param(1, 0, 0, d) = 0;
+            tensor.Param(0, 1, 0, d) = 0;
+            tensor.Param(1, 1, 0, d) = 1;
+        } else {
+            for (long k = 0; k < rank_[d + 1]; ++k) {
+                for (long j = 0; j < size[d]; ++j) {
+                    for (long i = 0; i < rank_[d]; ++i) {
+                        tensor.Param(i, j, k, d) = Param(i, j, k, d);
+                    }
+                }
+            }
+
+            for (long k = 0; k < other.rank_[d + 1]; ++k) {
+                for (long j = 0; j < size[d]; ++j) {
+                    for (long i = 0; i < other.rank_[d]; ++i) {
+                        tensor.Param(i + rank_[d], j, k + rank_[d + 1], d) =
+                            other.Param(i, j, k, d);
+                    }
+                }
+            }
+        }
+    }
 
     return tensor;
 }
