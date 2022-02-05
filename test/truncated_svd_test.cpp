@@ -2,46 +2,99 @@
 
 #include <gtest/gtest.h>
 
-#include <blas.hh>
+#include <armadillo>
 #include <cmath>
 #include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
 
-#include "thin_rq.hpp"
+#include "thin_lq.hpp"
 
 template <typename Real>
-void CreateRandomMatrix(long m, long n, std::vector<Real> &A) {
+void CreateTestMatrix(long m, long n, long r, arma::Mat<Real> &A,
+                      long &rank_cutoff, Real &absolute_tolerance,
+                      Real &relative_tolerance) {
     if (m < 1 || n < 1) {
         throw std::invalid_argument(
             "Number of rows and columns must be positive");
     }
 
-    A.resize(m * n);
+    // Create Ut factor
+    arma::Mat<Real> Ut;
+    {
+        arma::Mat<Real> temp(r, m, arma::fill::randn);
 
-    std::random_device device;
-    std::mt19937 generator(device());
-    std::uniform_real_distribution<Real> distribution(-1, 1);
-
-    for (long i = 0; i < m * n; ++i) {
-        A[i] = distribution(generator);
+        arma::Mat<Real> L;
+        ThinLq<Real>(temp, L, Ut);
     }
+
+    // Create s factor; s[i] ~ Uniform([(r - 1 - i), (r - i)])
+    arma::Col<Real> s(r, arma::fill::randu);
+    for (long i = 0; i < r; ++i) {
+        s(i) += r - i - 1;
+    }
+
+    // Create Vt factor
+    arma::Mat<Real> Vt;
+    {
+        arma::Mat<Real> temp(r, n, arma::fill::randn);
+
+        arma::Mat<Real> L;
+        ThinLq<Real>(temp, L, Vt);
+    }
+
+    // Compute A = Ut.conjugate() * diagmat(s) * Vt
+    A = Ut.t() * arma::diagmat(s) * Vt;
+
+    // Compute absolute and relative errors given specified maximum rank
+    std::vector<Real> absolute_error(r);
+
+    absolute_error[r - 1] = static_cast<Real>(0);
+    for (long i = r - 1; i > 0; --i) {
+        absolute_error[i - 1] = absolute_error[i] + std::pow(s(i), 2);
+    }
+    Real frobenius_norm = absolute_error[0] + std::pow(s(0), 2);
+
+    for (long i = 0; i < r; ++i) {
+        absolute_error[i] = std::sqrt(absolute_error[i]);
+    }
+    frobenius_norm = std::sqrt(frobenius_norm);
+
+    std::vector<Real> relative_error(r);
+
+    for (long i = 0; i < r; ++i) {
+        relative_error[i] = absolute_error[i] / frobenius_norm;
+    }
+
+    // Determine 75% Frobenius norm cutoff rank
+    rank_cutoff = 1;
+    while (rank_cutoff <= r) {
+        if (relative_error[rank_cutoff - 1] <= static_cast<Real>(0.25)) {
+            break;
+        }
+        ++rank_cutoff;
+    }
+
+    // Compute accuracy levels based on cutoff rank
+    absolute_tolerance =
+        (absolute_error[rank_cutoff - 2] + absolute_error[rank_cutoff - 1]) / 2;
+    relative_tolerance =
+        (relative_error[rank_cutoff - 2] + relative_error[rank_cutoff - 1]) / 2;
 }
 
 template <typename Real>
-void SvdFactorQualityTest(long m, long n, long r, const std::vector<Real> &U,
-                          const std::vector<Real> &s,
-                          const std::vector<Real> &Vt) {
-    ASSERT_EQ(U.size(), m * r);
-    ASSERT_EQ(s.size(), r);
-    ASSERT_EQ(Vt.size(), r * n);
+void SvdFactorQualityTest(const arma::Mat<Real> &U, const arma::Col<Real> &s,
+                          const arma::Mat<Real> &V) {
+    const long m = U.n_rows;
+    const long n = V.n_rows;
+    const long r = s.n_rows;
 
     for (long j1 = 0; j1 < r; ++j1) {
         for (long j2 = 0; j2 < j1; ++j2) {
             Real dot_product = static_cast<Real>(0);
             for (long i = 0; i < m; ++i) {
-                dot_product += U[i + j1 * m] * U[i + j2 * m];
+                dot_product += U(i, j1) * U(i, j2);
             }
 
             ASSERT_NEAR(dot_product, static_cast<Real>(0),
@@ -50,7 +103,7 @@ void SvdFactorQualityTest(long m, long n, long r, const std::vector<Real> &U,
 
         Real norm_squared = static_cast<Real>(0);
         for (long i = 0; i < m; ++i) {
-            norm_squared += std::pow(U[i + j1 * m], 2);
+            norm_squared += std::pow(U(i, j1), 2);
         }
 
         ASSERT_NEAR(norm_squared, static_cast<Real>(1),
@@ -59,17 +112,17 @@ void SvdFactorQualityTest(long m, long n, long r, const std::vector<Real> &U,
 
     for (long i = 0; i < r; ++i) {
         if (i < r - 1) {
-            ASSERT_GE(s[i], s[i + 1]);
+            ASSERT_GE(s(i), s(i + 1));
         } else {
-            ASSERT_GT(s[i], static_cast<Real>(0));
+            ASSERT_GT(s(i), static_cast<Real>(0));
         }
     }
 
-    for (long i1 = 0; i1 < r; ++i1) {
-        for (long i2 = 0; i2 < i1; ++i2) {
+    for (long j1 = 0; j1 < r; ++j1) {
+        for (long j2 = 0; j2 < j1; ++j2) {
             Real dot_product = static_cast<Real>(0);
-            for (long j = 0; j < n; ++j) {
-                dot_product += Vt[i1 + j * r] * Vt[i2 + j * r];
+            for (long i = 0; i < n; ++i) {
+                dot_product += V(i, j1) * V(i, j2);
             }
 
             ASSERT_NEAR(dot_product, static_cast<Real>(0),
@@ -77,8 +130,8 @@ void SvdFactorQualityTest(long m, long n, long r, const std::vector<Real> &U,
         }
 
         Real norm_squared = static_cast<Real>(0);
-        for (long j = 0; j < n; ++j) {
-            norm_squared += std::pow(Vt[i1 + j * r], 2);
+        for (long i = 0; i < n; ++i) {
+            norm_squared += std::pow(V(i, j1), 2);
         }
 
         ASSERT_NEAR(norm_squared, static_cast<Real>(1),
@@ -87,7 +140,7 @@ void SvdFactorQualityTest(long m, long n, long r, const std::vector<Real> &U,
 }
 
 template <typename Real>
-void TruncatedSvdTest(long m, long n, long r) {
+void ThinSvdTest(long m, long n, long r) {
     if (m < 1 || n < 1 || r < 1) {
         throw std::invalid_argument("Matrix sizes and rank must be positive");
     }
@@ -97,208 +150,138 @@ void TruncatedSvdTest(long m, long n, long r) {
     }
 
     // Construct appropriate matrix
-    std::vector<Real> A(m * n);
-    long k;
+    arma::Mat<Real> A;
+    long rank_cutoff;
     Real absolute_tolerance;
     Real relative_tolerance;
+    CreateTestMatrix<Real>(m, n, r, A, rank_cutoff, absolute_tolerance,
+                           relative_tolerance);
 
-    {
-        // Create Ut factor
-        std::vector<Real> Ut;
-        {
-            std::vector<Real> temp;
-            CreateRandomMatrix<Real>(r, m, temp);
+    // Test
+    arma::Mat<Real> U;
+    arma::Col<Real> s;
+    arma::Mat<Real> V;
+    long rank;
+    TruncatedSvd<Real>(A, 0, false, U, s, V, rank);
 
-            std::vector<Real> R;
-            ThinRq<Real>(r, m, temp, R, Ut);
-        }
+    const Real frobenius_error =
+        arma::norm(A - U * arma::diagmat(s) * V.t(), "fro");
 
-        // Create s factor; s[i] ~ Uniform([2 * (r - 1 - i), 2 * (r - i)])
-        std::vector<Real> s;
-        CreateRandomMatrix<Real>(r, 1, s);
-        for (long i = 0; i < r; ++i) {
-            s[i] += 2 * (r - 1 - i) + 1;
-        }
-
-        // Create Vt factor
-        std::vector<Real> Vt;
-        {
-            std::vector<Real> temp;
-            CreateRandomMatrix<Real>(r, n, temp);
-
-            std::vector<Real> R;
-            ThinRq<Real>(r, n, temp, R, Vt);
-        }
-
-        // Compute A = Ut.conjugate() * diagmat(s) * Vt
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < r; ++i) {
-                Vt[i + j * r] *= s[i];
-            }
-        }
-
-        blas::gemm(blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans,
-                   m, n, r, static_cast<Real>(1), Ut.data(), r, Vt.data(), r,
-                   static_cast<Real>(0), A.data(), m);
-
-        // Compute absolute and relative errors given specified maximum rank
-        std::vector<Real> absolute_error(r);
-
-        absolute_error[r - 1] = static_cast<Real>(0);
-        for (long i = r - 1; i > 0; --i) {
-            absolute_error[i - 1] = absolute_error[i] + std::pow(s[i], 2);
-        }
-        Real frobenius_norm = absolute_error[0] + std::pow(s[0], 2);
-
-        for (long i = 0; i < r; ++i) {
-            absolute_error[i] = std::sqrt(absolute_error[i]);
-        }
-        frobenius_norm = std::sqrt(frobenius_norm);
-
-        std::vector<Real> relative_error(r);
-
-        for (long i = 0; i < r; ++i) {
-            relative_error[i] = absolute_error[i] / frobenius_norm;
-        }
-
-        // Determine 75% Frobenius norm cutoff rank
-        k = 1;
-        while (k <= r) {
-            if (relative_error[k - 1] <= static_cast<Real>(0.25)) {
-                break;
-            }
-            ++k;
-        }
-
-        // Compute accuracy levels based on cutoff rank
-        absolute_tolerance =
-            (absolute_error[k - 2] + absolute_error[k - 1]) / 2;
-        relative_tolerance =
-            (relative_error[k - 2] + relative_error[k - 1]) / 2;
-    }
-
-    // Test thin SVD
-    {
-        std::vector<Real> B = A;
-
-        std::vector<Real> U;
-        std::vector<Real> s;
-        std::vector<Real> Vt;
-        long r;
-        TruncatedSvd<Real>(m, n, B, static_cast<Real>(0), false, r, U, s, Vt);
-
-        ASSERT_EQ(r, std::min(m, n));
-
-        SvdFactorQualityTest<Real>(m, n, r, U, s, Vt);
-
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < r; ++i) {
-                Vt[i + j * r] *= s[i];
-            }
-        }
-
-        std::vector<Real> C(m * n);
-        blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-                   m, n, r, static_cast<Real>(1), U.data(), m, Vt.data(), r,
-                   static_cast<Real>(0), C.data(), m);
-
-        Real frobenius_error = static_cast<Real>(0);
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < m; ++i) {
-                frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2);
-            }
-        }
-        frobenius_error = std::sqrt(frobenius_error);
-        ASSERT_LE(frobenius_error, 1000 * std::numeric_limits<Real>::epsilon());
-    }
-
-    // Test truncated SVD with absolute error
-    {
-        std::vector<Real> B = A;
-
-        std::vector<Real> U;
-        std::vector<Real> s;
-        std::vector<Real> Vt;
-        long r;
-        TruncatedSvd<Real>(m, n, B, absolute_tolerance, false, r, U, s, Vt);
-
-        ASSERT_EQ(r, k);
-
-        SvdFactorQualityTest<Real>(m, n, r, U, s, Vt);
-
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < k; ++i) {
-                Vt[i + j * r] *= s[i];
-            }
-        }
-
-        std::vector<Real> C(m * n);
-        blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-                   m, n, r, static_cast<Real>(1), U.data(), m, Vt.data(), r,
-                   static_cast<Real>(0), C.data(), m);
-
-        Real frobenius_error = static_cast<Real>(0);
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < m; ++i) {
-                frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2);
-            }
-        }
-        frobenius_error = std::sqrt(frobenius_error);
-        ASSERT_LE(frobenius_error, absolute_tolerance);
-    }
-
-    // Test thin SVD
-    {
-        std::vector<Real> B = A;
-
-        std::vector<Real> U;
-        std::vector<Real> s;
-        std::vector<Real> Vt;
-        long r;
-        TruncatedSvd<Real>(m, n, B, relative_tolerance, true, r, U, s, Vt);
-
-        ASSERT_EQ(r, k);
-
-        SvdFactorQualityTest<Real>(m, n, r, U, s, Vt);
-
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < k; ++i) {
-                Vt[i + j * r] *= s[i];
-            }
-        }
-
-        std::vector<Real> C(m * n);
-        blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-                   m, n, r, static_cast<Real>(1), U.data(), m, Vt.data(), r,
-                   static_cast<Real>(0), C.data(), m);
-
-        Real frobenius_error = static_cast<Real>(0);
-        Real frobenius_norm = static_cast<Real>(0);
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < m; ++i) {
-                frobenius_error += std::pow(A[i + j * m] - C[i + j * m], 2);
-                frobenius_norm += std::pow(A[i + j * m], 2);
-            }
-        }
-        frobenius_error = std::sqrt(frobenius_error);
-        frobenius_norm = std::sqrt(frobenius_norm);
-        ASSERT_LE(frobenius_error, relative_tolerance * frobenius_norm);
-    }
+    ASSERT_EQ(rank, std::min(m, n));
+    SvdFactorQualityTest<Real>(U, s, V);
+    ASSERT_LE(frobenius_error, 1000 * std::numeric_limits<Real>::epsilon());
 }
 
-TEST(TruncatedSvd, Short) {
-    TruncatedSvdTest<float>(16, 64, 8);
-    TruncatedSvdTest<double>(16, 64, 8);
+template <typename Real>
+void TruncatedSvdAbsoluteToleranceTest(long m, long n, long r) {
+    if (m < 1 || n < 1 || r < 1) {
+        throw std::invalid_argument("Matrix sizes and rank must be positive");
+    }
+
+    if (r > m || r > n) {
+        throw std::invalid_argument("Rank must be smaller than matrix size");
+    }
+
+    // Construct appropriate matrix
+    arma::Mat<Real> A;
+    long rank_cutoff;
+    Real absolute_tolerance;
+    Real relative_tolerance;
+    CreateTestMatrix<Real>(m, n, r, A, rank_cutoff, absolute_tolerance,
+                           relative_tolerance);
+
+    // Test
+    arma::Mat<Real> U;
+    arma::Col<Real> s;
+    arma::Mat<Real> V;
+    long rank;
+    TruncatedSvd<Real>(A, absolute_tolerance, false, U, s, V, rank);
+
+    const Real frobenius_error =
+        arma::norm(A - U * arma::diagmat(s) * V.t(), "fro");
+
+    ASSERT_EQ(rank, rank_cutoff);
+    SvdFactorQualityTest<Real>(U, s, V);
+    ASSERT_LE(frobenius_error, absolute_tolerance);
 }
 
-TEST(TruncatedSvd, Square) {
-    TruncatedSvdTest<float>(32, 32, 8);
-    TruncatedSvdTest<double>(32, 32, 8);
+template <typename Real>
+void TruncatedSvdRelativeToleranceTest(long m, long n, long r) {
+    if (m < 1 || n < 1 || r < 1) {
+        throw std::invalid_argument("Matrix sizes and rank must be positive");
+    }
+
+    if (r > m || r > n) {
+        throw std::invalid_argument("Rank must be smaller than matrix size");
+    }
+
+    // Construct appropriate matrix
+    arma::Mat<Real> A;
+    long rank_cutoff;
+    Real absolute_tolerance;
+    Real relative_tolerance;
+    CreateTestMatrix<Real>(m, n, r, A, rank_cutoff, absolute_tolerance,
+                           relative_tolerance);
+
+    // Test
+    arma::Mat<Real> U;
+    arma::Col<Real> s;
+    arma::Mat<Real> V;
+    long rank;
+    TruncatedSvd<Real>(A, relative_tolerance, true, U, s, V, rank);
+
+    const Real frobenius_norm = arma::norm(A, "fro");
+    const Real frobenius_error =
+        arma::norm(A - U * arma::diagmat(s) * V.t(), "fro");
+
+    ASSERT_EQ(rank, rank_cutoff);
+    SvdFactorQualityTest<Real>(U, s, V);
+    ASSERT_LE(frobenius_error, relative_tolerance * frobenius_norm);
 }
 
-TEST(TruncatedSvd, Tall) {
-    TruncatedSvdTest<float>(64, 16, 8);
-    TruncatedSvdTest<double>(64, 16, 8);
+TEST(TruncatedSvd, ThinSvd_ShortMatrix) {
+    ThinSvdTest<float>(16, 64, 8);
+    ThinSvdTest<double>(16, 64, 8);
+}
+
+TEST(TruncatedSvd, ThinSvd_SquareMatrix) {
+    ThinSvdTest<float>(32, 32, 8);
+    ThinSvdTest<double>(32, 32, 8);
+}
+
+TEST(TruncatedSvd, ThinSvd_TallMatrix) {
+    ThinSvdTest<float>(64, 16, 8);
+    ThinSvdTest<double>(64, 16, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdAbsoluteTolerance_ShortMatrix) {
+    TruncatedSvdAbsoluteToleranceTest<float>(16, 64, 8);
+    TruncatedSvdAbsoluteToleranceTest<double>(16, 64, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdAbsoluteTolerance_SquareMatrix) {
+    TruncatedSvdAbsoluteToleranceTest<float>(32, 32, 8);
+    TruncatedSvdAbsoluteToleranceTest<double>(32, 32, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdAbsoluteTolerance_TallMatrix) {
+    TruncatedSvdAbsoluteToleranceTest<float>(64, 16, 8);
+    TruncatedSvdAbsoluteToleranceTest<double>(64, 16, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdRelativeTolerance_ShortMatrix) {
+    TruncatedSvdRelativeToleranceTest<float>(16, 64, 8);
+    TruncatedSvdRelativeToleranceTest<double>(16, 64, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdRelativeTolerance_SquareMatrix) {
+    TruncatedSvdRelativeToleranceTest<float>(32, 32, 8);
+    TruncatedSvdRelativeToleranceTest<double>(32, 32, 8);
+}
+
+TEST(TruncatedSvd, TruncatedSvdRelativeTolerance_TallMatrix) {
+    TruncatedSvdRelativeToleranceTest<float>(64, 16, 8);
+    TruncatedSvdRelativeToleranceTest<double>(64, 16, 8);
 }
 
 int main(int argc, char **argv) {

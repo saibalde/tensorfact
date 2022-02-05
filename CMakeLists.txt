@@ -3,8 +3,7 @@ project(TensorFact VERSION 0.3.0)
 
 # dependencies
 
-find_package(blaspp REQUIRED)
-find_package(lapackpp REQUIRED)
+find_package(Armadillo REQUIRED)
 
 find_package(Doxygen)
 

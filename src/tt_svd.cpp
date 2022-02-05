@@ -24,56 +24,46 @@ tensorfact::TtTensor<Real> tensorfact::TtSvd(const std::vector<long> &size,
     const Real delta =
         relative_tolerance / std::sqrt(static_cast<Real>(ndim - 1));
 
+    // make copy of array
+    std::vector<Real> array_copy(array);
+
     // compute cores
     rank[0] = 1;
-
-    std::vector<std::vector<Real>> core(ndim);
-    core[ndim - 1] = array;
+    std::vector<arma::Cube<Real>> core(ndim);
 
     for (long d = 0; d < ndim - 1; ++d) {
-        const long m = rank[d] * size[d];
-        const long n = core[ndim - 1].size() / m;
+        arma::Mat<Real> A(array_copy.data(), rank[d] * size[d], array_copy.size() / (rank[d] * size[d]));
 
+        arma::Mat<Real> U;
+        arma::Col<Real> s;
+        arma::Mat<Real> V;
         long r;
-        std::vector<Real> s;
-        std::vector<Real> Vt;
-        TruncatedSvd<Real>(m, n, core[ndim - 1], delta, true, r, core[d], s,
-                           Vt);
+        TruncatedSvd<Real>(A, delta, true, U, s, V, r);
 
-        core[ndim - 1].resize(r * n);
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < r; ++i) {
-                core[ndim - 1][i + j * r] = s[i] * Vt[i + j * r];
-            }
-        }
+        core[d] = arma::Cube<Real>(U.memptr(), rank[d], size[d], r);
+
+        arma::Mat<Real> temp = arma::diagmat(s) * V.t();
+        array_copy = std::vector<Real>(temp.memptr(), temp.memptr() + temp.n_elem);
 
         rank[d + 1] = r;
     }
 
+    core[ndim - 1] = arma::Cube<Real>(array_copy.data(), rank[ndim - 1], size[ndim - 1], 1);
     rank[ndim] = 1;
 
-    // calculate offsets
-    std::vector<long> offset(ndim + 1);
-    offset[0] = 0;
-    for (long d = 0; d < ndim; ++d) {
-        offset[d + 1] = offset[d] + rank[d] * size[d] * rank[d + 1];
-    }
-
-    // combine cores
-    std::vector<Real> param(offset[ndim]);
+    // construct TT tensor
+    tensorfact::TtTensor<Real> tt_tensor(ndim, size, rank);
     for (long d = 0; d < ndim; ++d) {
         for (long k = 0; k < rank[d + 1]; ++k) {
             for (long j = 0; j < size[d]; ++j) {
                 for (long i = 0; i < rank[d]; ++i) {
-                    param[i + j * rank[d] + k * rank[d] * size[d] + offset[d]] =
-                        core[d][i + j * rank[d] + k * rank[d] * size[d]];
+                    tt_tensor.Param(i, j, k, d) = core[d](i, j, k);
                 }
             }
         }
     }
 
-    // create TT tensor object
-    return tensorfact::TtTensor<Real>(ndim, size, rank, param);
+    return tt_tensor;
 }
 
 template <typename Real>
@@ -87,83 +77,51 @@ tensorfact::TtTensor<Real> tensorfact::TtSvd(const std::vector<long> &size,
     long ndim = size.size();
     std::vector<long> rank(ndim + 1);
 
+    // make copy of array
+    std::vector<Real> array_copy(array);
+
     // compute cores
     rank[0] = 1;
-
-    std::vector<std::vector<Real>> core(ndim);
-    core[ndim - 1] = array;
+    std::vector<arma::Cube<Real>> core(ndim);
 
     for (long d = 0; d < ndim - 1; ++d) {
-        const long m = rank[d] * size[d];
-        const long n = core[ndim - 1].size() / m;
+        arma::Mat<Real> A(array_copy.data(), rank[d] * size[d], array_copy.size() / (rank[d] * size[d]));
 
-        long r;
-        std::vector<Real> s;
-        std::vector<Real> Vt;
-        TruncatedSvd<Real>(m, n, core[ndim - 1], 0.0, false, r, core[d], s, Vt);
+        arma::Mat<Real> U_temp;
+        arma::Col<Real> s_temp;
+        arma::Mat<Real> V_temp;
+        long r_temp;
+        TruncatedSvd<Real>(A, 0.0, false, U_temp, s_temp, V_temp, r_temp);
 
-        {
-            const long r_new = std::min(r, max_rank);
+        long r = std::min(r_temp, max_rank);
+        arma::Mat<Real> U(U_temp.memptr(), U_temp.n_rows, r);
+        arma::Col<Real> s(s_temp.memptr(), r);
+        arma::Mat<Real> V(V_temp.memptr(), V_temp.n_rows, r);
 
-            std::vector<Real> U_new(m * r_new);
-            for (long j = 0; j < r_new; ++j) {
-                for (long i = 0; i < m; ++i) {
-                    U_new[i + j * m] = core[d][i + j * m];
-                }
-            }
-            core[d] = std::move(U_new);
+        core[d] = arma::Cube<Real>(U.memptr(), rank[d], size[d], r);
 
-            std::vector<Real> s_new(r_new);
-            for (long i = 0; i < r_new; ++i) {
-                s_new[i] = s[i];
-            }
-            s = std::move(s_new);
-
-            std::vector<Real> Vt_new(r_new * n);
-            for (long j = 0; j < n; ++j) {
-                for (long i = 0; i < r_new; ++i) {
-                    Vt_new[i + j * r_new] = Vt[i + j * r];
-                }
-            }
-            Vt = std::move(Vt_new);
-
-            r = r_new;
-        }
-
-        core[ndim - 1].resize(r * n);
-        for (long j = 0; j < n; ++j) {
-            for (long i = 0; i < r; ++i) {
-                core[ndim - 1][i + j * r] = s[i] * Vt[i + j * r];
-            }
-        }
+        arma::Mat<Real> temp = arma::diagmat(s) * V.t();
+        array_copy = std::vector<Real>(temp.memptr(), temp.memptr() + temp.n_elem);
 
         rank[d + 1] = r;
     }
 
+    core[ndim - 1] = arma::Cube<Real>(array_copy.data(), rank[ndim - 1], size[ndim - 1], 1);
     rank[ndim] = 1;
 
-    // calculate offsets
-    std::vector<long> offset(ndim + 1);
-    offset[0] = 0;
-    for (long d = 0; d < ndim; ++d) {
-        offset[d + 1] = offset[d] + rank[d] * size[d] * rank[d + 1];
-    }
-
-    // combine cores
-    std::vector<Real> param(offset[ndim]);
+    // construct TT tensor
+    tensorfact::TtTensor<Real> tt_tensor(ndim, size, rank);
     for (long d = 0; d < ndim; ++d) {
         for (long k = 0; k < rank[d + 1]; ++k) {
             for (long j = 0; j < size[d]; ++j) {
                 for (long i = 0; i < rank[d]; ++i) {
-                    param[i + j * rank[d] + k * rank[d] * size[d] + offset[d]] =
-                        core[d][i + j * rank[d] + k * rank[d] * size[d]];
+                    tt_tensor.Param(i, j, k, d) = core[d](i, j, k);
                 }
             }
         }
     }
 
-    // create TT tensor object
-    return tensorfact::TtTensor<Real>(ndim, size, rank, param);
+    return tt_tensor;
 }
 
 // explicit instantiations

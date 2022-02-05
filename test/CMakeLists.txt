@@ -19,16 +19,24 @@ set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
 macro(TensorFact_add_test TESTNAME)
     add_executable(${TESTNAME} ${ARGN})
-    target_include_directories(${TESTNAME} PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_link_libraries(${TESTNAME} PRIVATE tensorfact blaspp gtest)
+    target_include_directories(${TESTNAME} PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+        ${ARMADILLO_INCLUDE_DIRS}
+    )
+    target_link_libraries(${TESTNAME} PRIVATE
+        ${ARMADILLO_LIBRARIES}
+        gtest
+        tensorfact
+    )
     gtest_discover_tests(${TESTNAME}
         WORKING_DIRECTORY ${PROJECT_DIR}
-        PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}"
+        PROPERTIES
+            VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}"
     )
     set_target_properties(${TESTNAME} PROPERTIES FOLDER test)
 endmacro()
 
-TensorFact_add_test(thin_rq_test thin_rq_test.cpp)
+TensorFact_add_test(thin_lq_test thin_lq_test.cpp)
 TensorFact_add_test(truncated_svd_test truncated_svd_test.cpp)
 TensorFact_add_test(tt_tensor_test tt_tensor_test.cpp)
 TensorFact_add_test(tt_svd_test tt_svd_test.cpp)

@@ -1,6 +1,6 @@
 #include "tensorfact/tt_tensor.hpp"
 
-#include <blas.hh>
+#include <armadillo>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "thin_rq.hpp"
+#include "thin_lq.hpp"
 #include "truncated_svd.hpp"
 
 // implementation
@@ -523,11 +523,12 @@ Real tensorfact::TtTensor<Real>::Impl::Contract(
         }
     }
 
-    std::shared_ptr<std::vector<Real>> temp1 = nullptr;
+    std::shared_ptr<arma::Col<Real>> temp1 = nullptr;
 
     for (long d = num_dim_ - 1; d >= 0; --d) {
         if (d == num_dim_ - 1) {
-            temp1 = std::make_shared<std::vector<Real>>(rank_[d], 0);
+            temp1 =
+                std::make_shared<arma::Col<Real>>(rank_[d], arma::fill::zeros);
 
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < rank_[d]; ++i) {
@@ -535,20 +536,18 @@ Real tensorfact::TtTensor<Real>::Impl::Contract(
                 }
             }
         } else {
-            std::vector<Real> slice(rank_[d] * rank_[d + 1], 0);
+            arma::Mat<Real> slice(rank_[d], rank_[d + 1], arma::fill::zeros);
             for (long k = 0; k < rank_[d + 1]; ++k) {
                 for (long j = 0; j < size_[d]; ++j) {
                     for (long i = 0; i < rank_[d]; ++i) {
-                        slice[i + rank_[d] * k] +=
-                            Param(i, j, k, d) * vectors[d][j];
+                        slice.at(i, k) += Param(i, j, k, d) * vectors[d][j];
                     }
                 }
             }
 
-            auto temp2 = std::make_shared<std::vector<Real>>(rank_[d]);
-            blas::gemv(blas::Layout::ColMajor, blas::Op::NoTrans, rank_[d],
-                       rank_[d + 1], 1, slice.data(), rank_[d], temp1->data(),
-                       1, 0, temp2->data(), 1);
+            auto temp2 = std::make_shared<arma::Col<Real>>();
+            *temp2 = slice * *temp1;
+
             std::swap(temp1, temp2);
         }
     }
@@ -570,7 +569,7 @@ Real tensorfact::TtTensor<Real>::Impl::Dot(
         }
     }
 
-    std::vector<Real> temp1;
+    arma::Mat<Real> temp1;
 
     for (long d = num_dim_ - 1; d >= 0; --d) {
         const long m = other.rank_[d];
@@ -579,75 +578,59 @@ Real tensorfact::TtTensor<Real>::Impl::Dot(
         const long n = rank_[d];
         const long nn = rank_[d + 1];
 
-        std::vector<Real> other_slice(m * mm);
-        std::vector<Real> slice(n * nn);
+        arma::Mat<Real> other_slice(m, mm);
+        arma::Mat<Real> slice(n, nn);
 
-        std::vector<std::vector<Real>> temp2(size_[d]);
+        std::vector<arma::Mat<Real>> temp2(size_[d]);
 
         if (d == num_dim_ - 1) {
             // Kronecker product of the last cores
             for (long k = 0; k < size_[d]; ++k) {
                 for (long j = 0; j < mm; ++j) {
                     for (long i = 0; i < m; ++i) {
-                        other_slice[i + m * j] = other.Param(i, k, j, d);
+                        other_slice.at(i, j) = other.Param(i, k, j, d);
                     }
                 }
 
                 for (long j = 0; j < nn; ++j) {
                     for (long i = 0; i < n; ++i) {
-                        slice[i + j * n] = Param(i, k, j, d);
+                        slice.at(i, j) = Param(i, k, j, d);
                     }
                 }
 
-                temp2[k].resize(m * n);
-                blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::Trans, m, n, mm, static_cast<Real>(1),
-                           other_slice.data(), m, slice.data(), n,
-                           static_cast<Real>(0), temp2[k].data(), m);
+                temp2[k] = other_slice * slice.t();
             }
         } else {
             // multiplication by Kronecker product of the cores
             for (long k = 0; k < size_[d]; ++k) {
                 for (long j = 0; j < mm; ++j) {
                     for (long i = 0; i < m; ++i) {
-                        other_slice[i + m * j] = other.Param(i, k, j, d);
+                        other_slice.at(i, j) = other.Param(i, k, j, d);
                     }
                 }
 
                 for (long j = 0; j < nn; ++j) {
                     for (long i = 0; i < n; ++i) {
-                        slice[i + j * n] = Param(i, k, j, d);
+                        slice.at(i, j) = Param(i, k, j, d);
                     }
                 }
 
-                std::vector<Real> temp3(m * nn);
-                blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::NoTrans, m, nn, mm, static_cast<Real>(1),
-                           other_slice.data(), m, temp1.data(), mm,
-                           static_cast<Real>(0), temp3.data(), m);
-
-                temp2[k].resize(m * n);
-                blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                           blas::Op::Trans, m, n, nn, static_cast<Real>(1),
-                           temp3.data(), m, slice.data(), n,
-                           static_cast<Real>(0), temp2[k].data(), m);
+                arma::Mat<Real> temp3 = other_slice * temp1;
+                temp2[k] = temp3 * slice.t();
             }
         }
 
-        temp1.resize(m * n);
+        temp1.zeros(m, n);
         for (long j = 0; j < n; ++j) {
             for (long i = 0; i < m; ++i) {
-                Real sum = static_cast<Real>(0);
                 for (long k = 0; k < size_[d]; ++k) {
-                    sum += temp2[k][i + j * m];
+                    temp1.at(i, j) += temp2[k].at(i, j);
                 }
-
-                temp1[i + j * m] = sum;
             }
         }
     }
 
-    return temp1[0];
+    return temp1.at(0, 0);
 }
 
 template <typename Real>
@@ -658,14 +641,13 @@ Real tensorfact::TtTensor<Real>::Impl::FrobeniusNorm() const {
 template <typename Real>
 void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
     // create cores
-    std::vector<std::vector<Real>> core(num_dim_);
+    std::vector<arma::Cube<Real>> core(num_dim_);
     for (long d = 0; d < num_dim_; ++d) {
-        core[d].resize(rank_[d] * size_[d] * rank_[d + 1]);
+        core[d].set_size(rank_[d], size_[d], rank_[d + 1]);
         for (long k = 0; k < rank_[d + 1]; ++k) {
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < rank_[d]; ++i) {
-                    core[d][i + j * rank_[d] + k * rank_[d] * size_[d]] =
-                        Param(i, j, k, d);
+                    core[d](i, j, k) = Param(i, j, k, d);
                 }
             }
         }
@@ -673,23 +655,20 @@ void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
 
     // right-to-left orthogonalization
     for (long d = num_dim_ - 1; d > 0; --d) {
-        const long m = rank_[d];
-        const long n = size_[d] * rank_[d + 1];
-        const long k = std::min(m, n);
+        arma::Mat<Real> L;
+        arma::Mat<Real> Q;
+        ThinLq<Real>(arma::Mat<Real>(core[d].memptr(), rank_[d],
+                                     size_[d] * rank_[d + 1]),
+                     L, Q);
+        const long k = Q.n_rows;
+        core[d] = arma::Cube<Real>(Q.memptr(), k, size_[d], rank_[d + 1]);
 
-        std::vector<Real> R;
-        std::vector<Real> Q;
-        ThinRq(m, n, core[d], R, Q);
-
-        core[d] = Q;
-
-        std::vector<Real> temp = core[d - 1];
-
-        const long mm = rank_[d - 1] * size_[d - 1];
-        core[d - 1].resize(mm * k);
-        blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans,
-                   mm, k, m, static_cast<Real>(1), temp.data(), mm, R.data(), m,
-                   static_cast<Real>(0), core[d - 1].data(), mm);
+        arma::Mat<Real> temp =
+            arma::Mat<Real>(core[d - 1].memptr(), rank_[d - 1] * size_[d - 1],
+                            rank_[d]) *
+            L;
+        core[d - 1] =
+            arma::Cube<Real>(temp.memptr(), rank_[d - 1], size_[d - 1], k);
 
         rank_[d] = k;
     }
@@ -700,31 +679,23 @@ void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
             relative_tolerance / std::sqrt(static_cast<Real>(num_dim_ - 1));
 
         for (long d = 0; d < num_dim_ - 1; ++d) {
-            const long m = rank_[d] * size_[d];
-            const long n = rank_[d + 1];
-
-            std::vector<Real> U;
-            std::vector<Real> s;
-            std::vector<Real> Vt;
+            arma::Mat<Real> U;
+            arma::Col<Real> s;
+            arma::Mat<Real> V;
             long r;
-            TruncatedSvd(m, n, core[d], delta, true, r, U, s, Vt);
+            TruncatedSvd<Real>(
+                arma::Mat<Real>(core[d].memptr(), rank_[d] * size_[d],
+                                rank_[d + 1]),
+                delta, true, U, s, V, r);
 
-            core[d] = U;
+            core[d] = arma::Cube<Real>(U.memptr(), rank_[d], size_[d], r);
 
-            for (long j = 0; j < n; ++j) {
-                for (long i = 0; i < r; ++i) {
-                    Vt[i + j * r] *= s[i];
-                }
-            }
-
-            std::vector<Real> temp = core[d + 1];
-
-            const long nn = size_[d + 1] * rank_[d + 2];
-            core[d + 1].resize(r * nn);
-            blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                       blas::Op::NoTrans, r, nn, n, static_cast<Real>(1),
-                       Vt.data(), r, temp.data(), n, static_cast<Real>(0),
-                       core[d + 1].data(), r);
+            arma::Mat<Real> temp =
+                arma::diagmat(s) * V.t() *
+                arma::Mat<Real>(core[d + 1].memptr(), rank_[d + 1],
+                                size_[d + 1] * rank_[d + 2]);
+            core[d + 1] =
+                arma::Cube<Real>(temp.memptr(), r, size_[d + 1], rank_[d + 2]);
 
             rank_[d + 1] = r;
         }
@@ -743,8 +714,7 @@ void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
         for (long k = 0; k < rank_[d + 1]; ++k) {
             for (long j = 0; j < size_[d]; ++j) {
                 for (long i = 0; i < rank_[d]; ++i) {
-                    Param(i, j, k, d) =
-                        core[d][i + j * rank_[d] + k * rank_[d] * size_[d]];
+                    Param(i, j, k, d) = core[d](i, j, k);
                 }
             }
         }
@@ -753,66 +723,44 @@ void tensorfact::TtTensor<Real>::Impl::Round(Real relative_tolerance) {
 
 template <typename Real>
 std::vector<Real> tensorfact::TtTensor<Real>::Impl::Full() const {
-    std::vector<Real> full;
+    arma::Mat<Real> full(param_.data(), rank_[0] * size_[0], rank_[1]);
 
-    for (long d = 0; d < num_dim_; ++d) {
-        long length = offset_[d + 1] - offset_[d];
-
-        if (d == 0) {
-            full.resize(length);
-            for (int n = 0; n < length; ++n) {
-                full[n] = param_[offset_[d] + n];
-            }
-        } else {
-            std::vector<Real> core(length);
-            for (int n = 0; n < length; ++n) {
-                core[n] = param_[offset_[d] + n];
-            }
-
-            const long m = full.size() / rank_[d];
-            const long n = size_[d] * rank_[d + 1];
-            const long k = rank_[d];
-
-            std::vector<Real> full_new(m * n);
-            blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans,
-                       blas::Op::NoTrans, m, n, k, 1, full.data(), m,
-                       core.data(), k, 0, full_new.data(), m);
-
-            full = std::move(full_new);
-        }
+    for (long d = 1; d < num_dim_; ++d) {
+        const arma::Mat<Real> core(param_.data() + offset_[d], rank_[d],
+                                   size_[d] * rank_[d + 1]);
+        arma::Mat<Real> full_new = full * core;
+        const long num_element = full_new.n_elem;
+        full_new.reshape(num_element / rank_[d + 1], rank_[d + 1]);
+        full = std::move(full_new);
     }
 
-    return full;
+    return std::vector<Real>(full.memptr(), full.memptr() + full.n_elem);
 }
 
 template <typename Real>
 Real tensorfact::TtTensor<Real>::Impl::Entry(
     const std::vector<long> &index) const {
-    auto temp = std::make_shared<std::vector<Real>>();
+    auto temp = std::make_shared<arma::Mat<Real>>();
 
     for (long d = num_dim_ - 1; d >= 0; --d) {
-        auto slice =
-            std::make_shared<std::vector<Real>>(rank_[d] * rank_[d + 1]);
+        auto slice = std::make_shared<arma::Mat<Real>>(rank_[d], rank_[d + 1]);
 
         for (long j = 0; j < rank_[d + 1]; ++j) {
             for (long i = 0; i < rank_[d]; ++i) {
-                slice->at(i + j * rank_[d]) = Param(i, index[d], j, d);
+                slice->at(i, j) = Param(i, index[d], j, d);
             }
         }
 
         if (d == num_dim_ - 1) {
             std::swap(temp, slice);
         } else {
-            auto temp_new = std::make_shared<std::vector<Real>>(rank_[d]);
-            blas::gemv(blas::Layout::ColMajor, blas::Op::NoTrans, rank_[d],
-                       rank_[d + 1], static_cast<Real>(1), slice->data(),
-                       rank_[d], temp->data(), 1, static_cast<Real>(0),
-                       temp_new->data(), 1);
+            auto temp_new = std::make_shared<arma::Mat<Real>>();
+            *temp_new = *slice * *temp;
             std::swap(temp, temp_new);
         }
     }
 
-    return temp->at(0);
+    return temp->at(0, 0);
 }
 
 template <typename Real>
